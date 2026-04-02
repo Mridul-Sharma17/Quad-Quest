@@ -27,7 +27,7 @@ import ToastID from "../../util/toastIds";
 import Spacer from "../Spacer";
 import { stagingProp } from "../../util/addStagingProperty";
 import { cleanArray } from "../../util/cleanObject";
-import theoryCards from "../../content-sources/oatutor/theoryCards.json";
+import theoryCards from "../../content-sources/runtime-oatutor/theoryCards.json";
 import interventionMap from "../../content-sources/interventionMap.json";
 import QuadrilateralPropertyLab from "../QuadrilateralPropertyLab";
 

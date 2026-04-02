@@ -1,0 +1,380 @@
+{
+	"quad.classify": {
+		"title": "Classification and Hierarchy of Quadrilaterals",
+		"summary": "Classify using properties in a fixed order: parallel sides, side equality pattern, and angle pattern. Then validate using hierarchy relationships so your answer is always logically consistent.",
+		"keyPoints": [
+			"Never classify from appearance alone; classify from properties.",
+			"A square is both a rectangle and a rhombus.",
+			"A trapezium has exactly one pair of opposite parallel sides in this lesson convention.",
+			"A kite has two pairs of adjacent equal sides."
+		],
+		"decisionTree": [
+			"Count opposite parallel side pairs first.",
+			"Check whether all sides are equal, then whether all angles are 90 degrees.",
+			"If there is exactly one parallel pair, classify as trapezium.",
+			"If there are two adjacent equal-side pairs, consider kite."
+		],
+		"deepDive": [
+			"Classification mistakes often happen when learners jump directly to familiar names like rectangle or square without validating all constraints.",
+			"A robust method is to list three facts from the problem first, then match to the smallest class that satisfies all three facts.",
+			"Hierarchy prevents contradictions: if a shape is square, statements valid for rectangle and rhombus should also hold."
+		],
+		"workedExample": {
+			"prompt": "A quadrilateral has opposite sides parallel, all sides equal, and one angle is not 90 degrees. Classify it.",
+			"steps": [
+				"Two pairs of opposite sides parallel -> parallelogram family.",
+				"All sides equal -> rhombus or square candidate.",
+				"Not all right angles -> exclude square.",
+				"Final class: rhombus."
+			],
+			"answer": "Rhombus"
+		},
+		"commonErrors": [
+			"Assuming all equal-sided quadrilaterals are squares.",
+			"Confusing trapezium with kite by looking only at drawing orientation.",
+			"Ignoring hierarchy and saying square is not a rectangle."
+		],
+		"propertyTable": [
+			{
+				"shape": "Rectangle",
+				"parallelSides": "2 opposite pairs",
+				"sideRule": "Opposite sides equal",
+				"angleRule": "All angles are 90 degrees"
+			},
+			{
+				"shape": "Rhombus",
+				"parallelSides": "2 opposite pairs",
+				"sideRule": "All sides equal",
+				"angleRule": "Opposite angles equal"
+			},
+			{
+				"shape": "Square",
+				"parallelSides": "2 opposite pairs",
+				"sideRule": "All sides equal",
+				"angleRule": "All angles are 90 degrees"
+			},
+			{
+				"shape": "Trapezium",
+				"parallelSides": "Exactly 1 opposite pair",
+				"sideRule": "No global equality required",
+				"angleRule": "Depends on subtype"
+			},
+			{
+				"shape": "Kite",
+				"parallelSides": "Not required",
+				"sideRule": "Two adjacent equal-side pairs",
+				"angleRule": "One opposite-angle pair equal"
+			}
+		],
+		"quickCheck": "Explain why every square is a rectangle, but not every rectangle is a square.",
+		"revisitSections": [
+			"S1: Property Checklist",
+			"S2: Decision Sequence",
+			"S3: Hierarchy and Subsets"
+		],
+		"recoveryPlan": [
+			"Write three observed properties before naming the class.",
+			"Use the decision sequence instead of visual guessing.",
+			"Validate hierarchy relation after choosing the class."
+		],
+		"sections": [
+			{
+				"id": "classify-properties-grid",
+				"label": "S1: Property Checklist",
+				"focus": "Convert the problem statement into a property checklist before classification.",
+				"details": [
+					"Mark parallel-side information first.",
+					"Then mark side equality (all equal, opposite equal, adjacent equal).",
+					"Finally mark angle condition (all right, opposite equal, adjacent supplementary)."
+				],
+				"quickActions": [
+					"Highlight one property phrase at a time.",
+					"Do not write a shape name until all properties are listed."
+				],
+				"microPractice": "Given: opposite sides parallel + all right angles. Which class fits exactly?"
+			},
+			{
+				"id": "classify-decision-sequence",
+				"label": "S2: Decision Sequence",
+				"focus": "Use a deterministic order to avoid confusion among look-alike classes.",
+				"details": [
+					"Step 1: number of opposite parallel pairs.",
+					"Step 2: side-equality pattern.",
+					"Step 3: angle pattern and exclusions."
+				],
+				"quickActions": [
+					"Apply the same three-step order to every item.",
+					"Cross out classes that violate any listed property."
+				],
+				"microPractice": "Given: exactly one opposite parallel pair and no all-equal-side rule. Which class is most likely?"
+			},
+			{
+				"id": "classify-hierarchy-subsets",
+				"label": "S3: Hierarchy and Subsets",
+				"focus": "Understand class inclusion to reason about always-true statements.",
+				"details": [
+					"Square belongs to rectangle set and rhombus set.",
+					"Rectangle and rhombus are both subtypes of parallelogram.",
+					"Subset logic is used to evaluate true/false hierarchy questions."
+				],
+				"quickActions": [
+					"Draw a mini set map: square inside rectangle and rhombus.",
+					"Test statements with the word always by checking all members of the class."
+				],
+				"microPractice": "Is the statement 'every square is a rhombus' always true? Justify in one line."
+			},
+			{
+				"id": "classify-borderline-cases",
+				"label": "S4: Borderline Cases",
+				"focus": "Separate classes that share many properties but differ by one condition.",
+				"details": [
+					"Square vs rhombus differs by right-angle requirement.",
+					"Kite vs rhombus differs by adjacent-equality pattern vs all-side equality.",
+					"Visual shape tilt does not change class membership."
+				],
+				"quickActions": [
+					"State one decisive distinguishing property.",
+					"Ignore orientation and rely only on property statements."
+				],
+				"microPractice": "A shape has all sides equal but one angle is 120 degrees. Classify and justify."
+			}
+		]
+	},
+	"quad.properties": {
+		"title": "Core Properties and Relations",
+		"summary": "Use invariant rules to solve quickly: quadrilateral angle sum is 360 degrees, opposite/adjacent angle relations in parallelograms, and formula setup for perimeter-based unknowns.",
+		"keyPoints": [
+			"Any quadrilateral interior-angle sum is 360 degrees.",
+			"In a parallelogram, opposite angles are equal.",
+			"In a parallelogram, adjacent angles are supplementary.",
+			"For rectangle perimeter, P = 2(l + b)."
+		],
+		"decisionTree": [
+			"Identify which property family applies: angle-sum, opposite-angle, adjacent-angle, or formula.",
+			"Write the property equation before substituting numbers.",
+			"Solve and validate with a second property where possible."
+		],
+		"deepDive": [
+			"Most incorrect attempts come from skipping the equation setup step and computing directly from memory.",
+			"Property-to-equation translation is the bridge between geometry language and numeric solving.",
+			"Validation should include a structure check: does the solved value keep all shape constraints valid?"
+		],
+		"workedExample": {
+			"prompt": "In a parallelogram, one angle is 110 degrees. Find an adjacent angle.",
+			"steps": [
+				"Use adjacent-angle rule: adjacent angles sum to 180 degrees.",
+				"Set equation: x + 110 = 180.",
+				"Solve: x = 70.",
+				"Check with opposite-angle property for consistency."
+			],
+			"answer": "70 degrees"
+		},
+		"commonErrors": [
+			"Using 360 in place of 180 for adjacent-angle questions.",
+			"Confusing opposite-angle equality with adjacent-angle supplement.",
+			"Substituting formula values before isolating unknown variable."
+		],
+		"propertyTable": [
+			{
+				"shape": "Any Quadrilateral",
+				"parallelSides": "Varies",
+				"sideRule": "Varies",
+				"angleRule": "A + B + C + D = 360"
+			},
+			{
+				"shape": "Parallelogram",
+				"parallelSides": "2 opposite pairs",
+				"sideRule": "Opposite sides equal",
+				"angleRule": "Opposite equal, adjacent supplementary"
+			},
+			{
+				"shape": "Rectangle",
+				"parallelSides": "2 opposite pairs",
+				"sideRule": "Opposite sides equal",
+				"angleRule": "All 90; perimeter P = 2(l + b)"
+			}
+		],
+		"quickCheck": "Which equation should you write first for a rectangle with known perimeter and one side?",
+		"revisitSections": [
+			"S1: Angle Sum Rule",
+			"S2: Parallelogram Angle Relations",
+			"S4: Formula Setup (Perimeter/Unknown Side)"
+		],
+		"recoveryPlan": [
+			"Write the property sentence before writing numbers.",
+			"Convert the sentence into one equation.",
+			"After solving, verify using a second property check."
+		],
+		"sections": [
+			{
+				"id": "properties-angle-sum-360",
+				"label": "S1: Angle Sum Rule",
+				"focus": "Use the invariant A + B + C + D = 360 for any quadrilateral.",
+				"details": [
+					"This rule does not depend on quadrilateral type.",
+					"Apply when one or more interior angles are unknown.",
+					"Set unknowns in one equation, then solve systematically."
+				],
+				"quickActions": [
+					"Write all four angles explicitly before summing.",
+					"Keep units (degrees) visible to avoid arithmetic slips."
+				],
+				"microPractice": "If three interior angles are 95, 110, and 75, find the fourth angle."
+			},
+			{
+				"id": "properties-parallelogram-angles",
+				"label": "S2: Parallelogram Angle Relations",
+				"focus": "Choose correctly between opposite-angle equality and adjacent-angle supplement.",
+				"details": [
+					"Opposite angles are equal: A = C and B = D.",
+					"Adjacent angles are supplementary: A + B = 180.",
+					"Use diagram labeling consistently to avoid relation swaps."
+				],
+				"quickActions": [
+					"Ask first: opposite pair or adjacent pair?",
+					"Write relation symbolically before substitution."
+				],
+				"microPractice": "In a parallelogram, if A = 68, find adjacent angle B and opposite angle C."
+			},
+			{
+				"id": "properties-side-and-diagonal-rules",
+				"label": "S3: Side and Diagonal Rules",
+				"focus": "Connect side/diagonal facts to valid class-specific conclusions.",
+				"details": [
+					"Rectangle diagonals are equal.",
+					"Rhombus diagonals are perpendicular bisectors (classical property).",
+					"Use side and diagonal properties only when class assumption is justified."
+				],
+				"quickActions": [
+					"State class assumption explicitly before using diagonal rules.",
+					"Do not transfer one class property to a different class without proof."
+				],
+				"microPractice": "Which diagonal property is valid for rectangle but not for every parallelogram?"
+			},
+			{
+				"id": "properties-perimeter-setup",
+				"label": "S4: Formula Setup (Perimeter/Unknown Side)",
+				"focus": "Translate perimeter statements into solvable linear equations.",
+				"details": [
+					"Rectangle perimeter: P = 2(l + b).",
+					"Substitute known values and isolate unknown using inverse steps.",
+					"Back-substitute to confirm perimeter matches the given value."
+				],
+				"quickActions": [
+					"Expand 2(l + b) only after substitution.",
+					"Perform a final numerical check with the original formula."
+				],
+				"microPractice": "A rectangle has P = 50 and l = 16. Find b."
+			}
+		]
+	},
+	"quad.reasoning": {
+		"title": "Reasoning and Verification Strategy",
+		"summary": "High-quality answers come from chain reasoning: identify rule, build equation, solve, and verify against the shape's constraints and hierarchy.",
+		"keyPoints": [
+			"State the governing rule before doing arithmetic.",
+			"Use one-line equations that directly match the rule.",
+			"Verify with a second condition whenever possible.",
+			"Always/never/sometimes questions require class-level logic, not examples only."
+		],
+		"decisionTree": [
+			"Translate the question into 'what must be true'.",
+			"Select one geometry rule that enforces that truth.",
+			"Compute and then test consistency with class constraints.",
+			"For hierarchy questions, use subset logic."
+		],
+		"deepDive": [
+			"Reasoning errors usually come from skipping justification and jumping to numerical manipulation.",
+			"A compact explanation line improves correctness and helps detect wrong-rule usage early.",
+			"For mixed verbal problems, identify whether the bottleneck is classification, property relation, or equation setup."
+		],
+		"workedExample": {
+			"prompt": "Is the statement 'every square is a rhombus' always true?",
+			"steps": [
+				"Define rhombus condition: all four sides equal.",
+				"Define square condition: all four sides equal and all angles right.",
+				"Since square includes all-side-equal condition, every square satisfies rhombus definition.",
+				"Conclude statement is always true."
+			],
+			"answer": "Always true"
+		},
+		"commonErrors": [
+			"Using one drawing as proof for always/never statements.",
+			"Giving a numeric result without stating the rule used.",
+			"Failing to test whether final answer satisfies original conditions."
+		],
+		"quickCheck": "Write a 3-step solution frame for any quadrilateral property problem.",
+		"revisitSections": [
+			"S1: Rule to Equation",
+			"S2: Justify Classification Claims",
+			"S3: Sanity Checks"
+		],
+		"recoveryPlan": [
+			"Write one justification line before calculations.",
+			"Mark whether the question asks numeric value or truth classification.",
+			"Do one post-solution consistency check."
+		],
+		"sections": [
+			{
+				"id": "reasoning-rule-to-equation",
+				"label": "S1: Rule to Equation",
+				"focus": "Convert geometric statements into explicit equations.",
+				"details": [
+					"Identify keywords: opposite, adjacent, supplementary, equal.",
+					"Map keywords to one standard equation.",
+					"Solve only after equation matches the stated relation."
+				],
+				"quickActions": [
+					"Underline relation words in the prompt.",
+					"Write the relation in symbols before substituting values."
+				],
+				"microPractice": "Convert 'adjacent angles in a parallelogram are supplementary' into an equation using x."
+			},
+			{
+				"id": "reasoning-justify-classification",
+				"label": "S2: Justify Classification Claims",
+				"focus": "Support class claims with definition-based evidence, not appearance.",
+				"details": [
+					"A claim is valid only if all required properties are satisfied.",
+					"For always-true claims, reason over the full class set.",
+					"Use hierarchy map language: subset, special case, general case."
+				],
+				"quickActions": [
+					"Cite the exact defining property in your explanation.",
+					"Use 'therefore' only after property match is explicit."
+				],
+				"microPractice": "Justify in one line: why every square is also a rectangle."
+			},
+			{
+				"id": "reasoning-sanity-check",
+				"label": "S3: Sanity Checks",
+				"focus": "Validate whether computed values and claims remain geometrically consistent.",
+				"details": [
+					"Check angle bounds and sum constraints.",
+					"Check class constraints still hold after solving unknowns.",
+					"Reject answers that break invariant properties."
+				],
+				"quickActions": [
+					"Re-substitute your result into the original equation.",
+					"Confirm with at least one secondary property."
+				],
+				"microPractice": "If you found an adjacent angle as 195 degrees in a parallelogram, what should you conclude and why?"
+			},
+			{
+				"id": "reasoning-multi-step-strategy",
+				"label": "S4: Multi-step Strategy",
+				"focus": "Handle mixed verbal + numeric questions with a stable sequence.",
+				"details": [
+					"Step 1: extract givens and unknowns.",
+					"Step 2: choose the governing property.",
+					"Step 3: write/solve equation, then verify."
+				],
+				"quickActions": [
+					"Create a mini plan before calculating.",
+					"Do not combine two unrelated rules in one step."
+				],
+				"microPractice": "Outline three steps to solve: perimeter known, one side known, find the other side in a rectangle."
+			}
+		]
+	}
+}

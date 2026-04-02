@@ -1,5 +1,5 @@
 import React from "react";
-import courses from "../content-sources/oatutor/coursePlans.json";
+import courses from "../content-sources/runtime-oatutor/coursePlans.json";
 import { calculateSemester } from "../util/calculateSemester.js";
 
 import { SITE_NAME } from "@common/global-config";

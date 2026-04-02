@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import Button from "@material-ui/core/Button";
 import Card from "@material-ui/core/Card";
 import CardContent from "@material-ui/core/CardContent";
-import theoryCards from "../content-sources/oatutor/theoryCards.json";
+import theoryCards from "../content-sources/runtime-oatutor/theoryCards.json";
 import QuadrilateralPropertyLab from "./QuadrilateralPropertyLab";
 
 const SKILL_LABELS = {

@@ -43,9 +43,9 @@ import LearnerLoginGate from "./components/LearnerLoginGate";
 
 // ### BEGIN CUSTOMIZABLE IMPORTS ###
 import config from "./config/firebaseConfig.js";
-import skillModel from "./content-sources/oatutor/skillModel.json";
-import defaultBKTParams from "./content-sources/oatutor/bkt-params/defaultBKTParams.json";
-import experimentalBKTParams from "./content-sources/oatutor/bkt-params/experimentalBKTParams.json";
+import skillModel from "./content-sources/runtime-oatutor/skillModel.json";
+import defaultBKTParams from "./content-sources/runtime-oatutor/bkt-params/defaultBKTParams.json";
+import experimentalBKTParams from "./content-sources/runtime-oatutor/bkt-params/experimentalBKTParams.json";
 import { heuristic as defaultHeuristic } from "./models/BKT/problem-select-heuristics/defaultHeuristic.js";
 import { heuristic as experimentalHeuristic } from "./models/BKT/problem-select-heuristics/experimentalHeuristic.js";
 import BrowserStorage from "./util/browserStorage";

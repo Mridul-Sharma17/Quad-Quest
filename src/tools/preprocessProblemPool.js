@@ -20,6 +20,7 @@ const problemPoolPath = path.join(__dirname, '..', 'content-sources', CONTENT_SO
 const generatedPath = path.join(__dirname, '..', '..', 'generated', 'processed-content-pool')
 const poolFilePath = path.join(generatedPath, `${CONTENT_SOURCE}.json`)
 const staticFiguresPath = path.join(__dirname, '..', '..', 'public', 'static', 'images', 'figures', CONTENT_SOURCE)
+const requiredQuadrilateralIds = ['qq8quad009', 'qq8quad010']
 
 ;(async () => {
     // let hasPrevPool = true, config = {};
@@ -50,6 +51,13 @@ const staticFiguresPath = path.join(__dirname, '..', '..', 'public', 'static', '
     const updatedTime = -1; // optimizing file reads based on last updated time makes negligible difference right now.
     // let modifiedProblems = 0
     const directoryItems = await readdir(problemPoolPath)
+
+    const hasAllRequiredQuadrilateralItems = requiredQuadrilateralIds.every(id => directoryItems.includes(id))
+    if (!hasAllRequiredQuadrilateralItems && fs.existsSync(poolFilePath)) {
+        console.warn('Detected older content source snapshot. Keeping existing generated pool file as-is.')
+        process.exit(0)
+    }
+
     const problemDirs = await Promise.all(directoryItems.map(async item => {
         const stat = await lstat(path.join(problemPoolPath, item))
         let directory = ""
