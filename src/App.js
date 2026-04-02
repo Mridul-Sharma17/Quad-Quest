@@ -94,11 +94,9 @@ class App extends React.Component {
             localStorage.setItem(USER_ID_STORAGE_KEY, userId);
         }
         this.userID = userId;
-        this.bktParams = this.getTreatmentObject(treatmentMapping.bktParams);
+        this.bktParams = this.createFreshBktParams();
 
-        this.originalBktParams = JSON.parse(
-            JSON.stringify(this.getTreatmentObject(treatmentMapping.bktParams))
-        );
+        this.originalBktParams = this.createFreshBktParams();
 
         this.state = {
             additionalContext: {},
@@ -192,6 +190,30 @@ class App extends React.Component {
         this.handleLearnerLogout = this.handleLearnerLogout.bind(this);
     }
 
+    createFreshBktParams = () => {
+        const source = this.getTreatmentObject(treatmentMapping.bktParams) || {};
+        return JSON.parse(JSON.stringify(source));
+    };
+
+    getActiveLearnerID = () => {
+        const learnerID = String(this.state?.learnerID || "").trim();
+        if (learnerID) {
+            return learnerID;
+        }
+
+        const contextLearnerID = String(
+            this.state?.additionalContext?.learnerID || ""
+        ).trim();
+        if (contextLearnerID) {
+            return contextLearnerID;
+        }
+
+        const lmsUserID = String(
+            this.state?.additionalContext?.user?.user_id || ""
+        ).trim();
+        return lmsUserID;
+    };
+
     handleLearnerLogin(learnerID) {
         const normalizedLearnerID = String(learnerID || "").trim();
         if (!normalizedLearnerID) {
@@ -203,15 +225,32 @@ class App extends React.Component {
             learnerID: normalizedLearnerID,
             additionalContext: {
                 ...prevState.additionalContext,
+                learnerID: normalizedLearnerID,
                 studentName:
                     prevState.additionalContext.studentName ||
                     normalizedLearnerID,
             },
-        }));
+        }), () => {
+            if (
+                typeof this.firebase?.ensureLearnerProgressDocument === "function"
+            ) {
+                this.firebase
+                    .ensureLearnerProgressDocument(normalizedLearnerID)
+                    .catch((error) => {
+                        console.debug(
+                            "unable to initialize learner progress document",
+                            error
+                        );
+                    });
+            }
+            this.loadBktProgress();
+        });
     }
 
     handleLearnerLogout() {
         localStorage.removeItem(LEARNER_ID_STORAGE_KEY);
+        this.bktParams = this.createFreshBktParams();
+        this.originalBktParams = this.createFreshBktParams();
         this.setState((prevState) => ({
             learnerID: "",
             additionalContext: {
@@ -244,6 +283,25 @@ class App extends React.Component {
     };
 
     removeProgress = async () => {
+        const activeLearnerID = this.getActiveLearnerID();
+        if (
+            activeLearnerID &&
+            typeof this.firebase?.saveLearnerProgress === "function"
+        ) {
+            await this.firebase
+                .saveLearnerProgress(activeLearnerID, {
+                    bktProgress: {},
+                    lessonProgressByLesson: {},
+                    behaviorMetricsByLesson: {},
+                })
+                .catch((error) => {
+                    console.debug(
+                        "unable to clear firestore learner progress",
+                        error
+                    );
+                });
+        }
+
         const { getKeys, removeByKey } = this.browserStorage;
         await removeByKey(PROGRESS_STORAGE_KEY);
         const existingKeys = (await getKeys()) || [];
@@ -253,11 +311,12 @@ class App extends React.Component {
         await Promise.allSettled(
             lessonStorageKeys.map(async (key) => await removeByKey(key))
         );
-        this.bktParams = this.getTreatmentObject(treatmentMapping.bktParams);
+        this.bktParams = this.createFreshBktParams();
+        this.originalBktParams = this.createFreshBktParams();
         window.location.reload();
     };
 
-    saveProgress = () => {
+    saveProgress = async () => {
         console.debug("saving progress");
 
         const progressedBktParams = Object.fromEntries(
@@ -269,8 +328,27 @@ class App extends React.Component {
                 );
             })
         );
+
+        const activeLearnerID = this.getActiveLearnerID();
+        if (
+            activeLearnerID &&
+            typeof this.firebase?.saveLearnerProgress === "function"
+        ) {
+            await this.firebase
+                .saveLearnerProgress(activeLearnerID, {
+                    bktProgress: progressedBktParams,
+                })
+                .catch((err) => {
+                    console.debug("save progress error (firestore): ", err);
+                    toast.warn("Unable to save mastery progress :(", {
+                        toastId: "unable_to_save_progress",
+                    });
+                });
+            return;
+        }
+
         const { setByKey } = this.browserStorage;
-        setByKey(PROGRESS_STORAGE_KEY, progressedBktParams, (err) => {
+        await setByKey(PROGRESS_STORAGE_KEY, progressedBktParams, (err) => {
             if (err) {
                 console.debug("save progress error: ", err);
                 toast.warn("Unable to save mastery progress :(", {
@@ -283,10 +361,33 @@ class App extends React.Component {
     };
 
     loadBktProgress = async () => {
-        const { getByKey } = this.browserStorage;
-        const progress = await getByKey(PROGRESS_STORAGE_KEY).catch((_e) => {
-            console.debug("error with getting previous progress", _e);
-        });
+        this.bktParams = this.createFreshBktParams();
+        this.originalBktParams = this.createFreshBktParams();
+
+        const activeLearnerID = this.getActiveLearnerID();
+        let progress = null;
+
+        if (
+            activeLearnerID &&
+            typeof this.firebase?.loadLearnerProgress === "function"
+        ) {
+            const learnerProgressPayload = await this.firebase
+                .loadLearnerProgress(activeLearnerID)
+                .catch((_e) => {
+                    console.debug(
+                        "error with getting firestore learner progress",
+                        _e
+                    );
+                    return null;
+                });
+            progress = learnerProgressPayload?.bktProgress || null;
+        } else {
+            const { getByKey } = this.browserStorage;
+            progress = await getByKey(PROGRESS_STORAGE_KEY).catch((_e) => {
+                console.debug("error with getting previous progress", _e);
+            });
+        }
+
         if (
             progress == null ||
             typeof progress !== "object" ||
@@ -296,9 +397,7 @@ class App extends React.Component {
                 "resetting progress... obtained progress was invalid: ",
                 progress
             );
-            this.bktParams = this.getTreatmentObject(
-                treatmentMapping.bktParams
-            );
+            return;
         } else {
             console.debug(
                 "restoring progress from before (raw, uncleaned): ",

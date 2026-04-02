@@ -81,7 +81,7 @@ class LearnerLoginGate extends React.Component {
                                         lineHeight: 1.15,
                                     }}
                                 >
-                                    Understand Quadrilaterals
+                                    Quad-Quests
                                 </h2>
                                 <p
                                     style={{
@@ -134,7 +134,7 @@ class LearnerLoginGate extends React.Component {
                                         color="primary"
                                         fullWidth
                                     >
-                                        Start Quadrilateral Chapter
+                                        Start Quad-Quests
                                     </Button>
                                 </Grid>
                             </Grid>

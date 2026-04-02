@@ -107,6 +107,56 @@ class Platform extends React.Component {
         return `${this.getLessonStorageKey()}:behavior`;
     };
 
+    getActiveLearnerID = () => {
+        const learnerID = String(this.context?.learnerID || "").trim();
+        if (learnerID) {
+            return learnerID;
+        }
+
+        const lmsUserID = String(this.context?.user?.user_id || "").trim();
+        return lmsUserID;
+    };
+
+    shouldUseLearnerDatabase = () => {
+        return (
+            Boolean(this.getActiveLearnerID()) &&
+            typeof this.context?.firebase?.loadLearnerProgress === "function" &&
+            typeof this.context?.firebase?.saveLearnerProgress === "function"
+        );
+    };
+
+    loadLearnerProgressSnapshot = async () => {
+        const activeLearnerID = this.getActiveLearnerID();
+        if (!activeLearnerID) {
+            return null;
+        }
+
+        if (typeof this.context?.firebase?.loadLearnerProgress !== "function") {
+            return null;
+        }
+
+        return await this.context.firebase
+            .loadLearnerProgress(activeLearnerID)
+            .catch(() => null);
+    };
+
+    saveLearnerProgressPatch = async (patch = {}) => {
+        const activeLearnerID = this.getActiveLearnerID();
+        if (!activeLearnerID) {
+            return false;
+        }
+
+        if (typeof this.context?.firebase?.saveLearnerProgress !== "function") {
+            return false;
+        }
+
+        const didSave = await this.context.firebase
+            .saveLearnerProgress(activeLearnerID, patch)
+            .then(() => true)
+            .catch(() => false);
+        return didSave;
+    };
+
     calculateLessonMastery = (context = this.context, lesson = this.lesson) => {
         const objectives = Object.keys(lesson?.learningObjectives || {});
         if (objectives.length === 0) {
@@ -128,10 +178,17 @@ class Platform extends React.Component {
     };
 
     loadBehaviorMetrics = async () => {
+        const lessonStorageKey = this.getLessonStorageKey();
+        if (this.shouldUseLearnerDatabase()) {
+            const learnerSnapshot = await this.loadLearnerProgressSnapshot();
+            if (learnerSnapshot?.behaviorMetricsByLesson) {
+                return learnerSnapshot.behaviorMetricsByLesson[lessonStorageKey] || null;
+            }
+            return null;
+        }
+
         const { getByKey } = this.context.browserStorage;
-        return await getByKey(this.getBehaviorMetricsStorageKey()).catch(
-            () => null
-        );
+        return await getByKey(this.getBehaviorMetricsStorageKey()).catch(() => null);
     };
 
     persistBehaviorMetrics = async () => {
@@ -139,11 +196,22 @@ class Platform extends React.Component {
             return;
         }
 
+        const lessonStorageKey = this.getLessonStorageKey();
         const payload = {
             skillDifficultyMap: this.state.skillDifficultyMap || {},
             pendingTheoryIntervention:
                 this.state.pendingTheoryIntervention || null,
         };
+
+        if (this.shouldUseLearnerDatabase()) {
+            await this.saveLearnerProgressPatch({
+                behaviorMetricsByLesson: {
+                    [lessonStorageKey]: payload,
+                },
+            });
+            return;
+        }
+
         const { setByKey } = this.context.browserStorage;
         await setByKey(this.getBehaviorMetricsStorageKey(), payload).catch(() => {});
     };
@@ -481,18 +549,31 @@ class Platform extends React.Component {
 
         this.lesson = resolvedLesson;
 
-        const loadLessonProgress = async () => {
-            const { getByKey } = this.context.browserStorage;
-            return await getByKey(this.getLessonStorageKey()).catch(
-                (err) => {}
-            );
-        };
+        await this.props.loadBktProgress();
 
-        const [, prevCompletedProbs, persistedBehaviorMetrics] = await Promise.all([
-            this.props.loadBktProgress(),
-            loadLessonProgress(),
-            this.loadBehaviorMetrics(),
-        ]);
+        const lessonStorageKey = this.getLessonStorageKey();
+        const learnerSnapshot = await this.loadLearnerProgressSnapshot();
+        let prevCompletedProbs = null;
+        let persistedBehaviorMetrics = null;
+
+        if (learnerSnapshot?.lessonProgressByLesson) {
+            prevCompletedProbs =
+                learnerSnapshot.lessonProgressByLesson[lessonStorageKey] || null;
+        }
+        if (learnerSnapshot?.behaviorMetricsByLesson) {
+            persistedBehaviorMetrics =
+                learnerSnapshot.behaviorMetricsByLesson[lessonStorageKey] || null;
+        }
+
+        if (!Array.isArray(prevCompletedProbs) && !this.shouldUseLearnerDatabase()) {
+            const { getByKey } = this.context.browserStorage;
+            prevCompletedProbs = await getByKey(lessonStorageKey).catch(() => null);
+        }
+
+        if (!persistedBehaviorMetrics && !this.shouldUseLearnerDatabase()) {
+            persistedBehaviorMetrics = await this.loadBehaviorMetrics();
+        }
+
         if (!this._isMounted) {
             console.debug("component not mounted, returning early (2)");
             return;
@@ -920,23 +1001,32 @@ class Platform extends React.Component {
 
     problemComplete = async (context) => {
         this.completedProbs.add(this.state.currProblem.id);
-        const { setByKey } = this.context.browserStorage;
-        await setByKey(
-            this.getLessonStorageKey(),
-            this.completedProbs
-        ).catch((error) => {
-            this.context.firebase.submitSiteLog(
-                "site-error",
-                `componentName: Platform.js`,
-                {
-                    errorName: error.name || "n/a",
-                    errorCode: error.code || "n/a",
-                    errorMsg: error.message || "n/a",
-                    errorStack: error.stack || "n/a",
+        const lessonStorageKey = this.getLessonStorageKey();
+        const completedProblemIDs = Array.from(this.completedProbs);
+        if (this.shouldUseLearnerDatabase()) {
+            this.saveLearnerProgressPatch({
+                lessonProgressByLesson: {
+                    [lessonStorageKey]: completedProblemIDs,
                 },
-                this.state.currProblem.id
+            }).catch(() => {});
+        } else {
+            const { setByKey } = this.context.browserStorage;
+            await setByKey(lessonStorageKey, completedProblemIDs).catch(
+                (error) => {
+                    this.context.firebase.submitSiteLog(
+                        "site-error",
+                        `componentName: Platform.js`,
+                        {
+                            errorName: error.name || "n/a",
+                            errorCode: error.code || "n/a",
+                            errorMsg: error.message || "n/a",
+                            errorStack: error.stack || "n/a",
+                        },
+                        this.state.currProblem.id
+                    );
+                }
             );
-        });
+        }
 
         if (this.state.pendingTheoryIntervention?.skill) {
             const objectives = Object.keys(this.lesson.learningObjectives || {});
@@ -1024,9 +1114,21 @@ class Platform extends React.Component {
         }
 
         this.completedProbs = new Set();
-        const { removeByKey } = this.context.browserStorage;
-        await removeByKey(this.getLessonStorageKey()).catch(() => {});
-        await removeByKey(this.getBehaviorMetricsStorageKey()).catch(() => {});
+        const lessonStorageKey = this.getLessonStorageKey();
+        if (this.shouldUseLearnerDatabase()) {
+            await this.saveLearnerProgressPatch({
+                lessonProgressByLesson: {
+                    [lessonStorageKey]: [],
+                },
+                behaviorMetricsByLesson: {
+                    [lessonStorageKey]: null,
+                },
+            });
+        } else {
+            const { removeByKey } = this.context.browserStorage;
+            await removeByKey(lessonStorageKey).catch(() => {});
+            await removeByKey(this.getBehaviorMetricsStorageKey()).catch(() => {});
+        }
 
         const objectives = Object.keys(this.lesson.learningObjectives || {});
         const adaptiveTrace = this.buildAdaptiveTrace(
@@ -1185,6 +1287,13 @@ class Platform extends React.Component {
 
     displayMastery = (mastery) => {
         this.setState({ mastery: mastery });
+        if (this.lesson?.id) {
+            this.saveLearnerProgressPatch({
+                masteryByLesson: {
+                    [this.getLessonStorageKey()]: mastery,
+                },
+            });
+        }
         if (mastery >= MASTERY_THRESHOLD) {
             toast.success("You've successfully completed this assignment!", {
                 toastId: ToastID.successfully_completed_lesson.toString(),

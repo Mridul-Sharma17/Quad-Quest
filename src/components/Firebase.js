@@ -11,6 +11,7 @@ import { initializeApp } from "firebase/app";
 import {
     arrayUnion,
     doc,
+    getDoc,
     getFirestore,
     serverTimestamp,
     setDoc,
@@ -29,6 +30,7 @@ const GPTExperimentOutput = "GPTExperimentOutput";
 const feedbackOutput = "feedbacks";
 const siteLogOutput = "siteLogs";
 const focusStatus = "focusStatus";
+const learnerProgressOutput = "learnerProgress";
 
 class Firebase {
     constructor(oats_user_id, credentials, treatment, siteVersion, ltiContext) {
@@ -200,6 +202,95 @@ class Firebase {
                 .toString()
                 .padStart(5, "0")
         );
+    }
+
+    _normalizeLearnerID(learnerID) {
+        return String(learnerID || "").trim();
+    }
+
+    _getLearnerDocId(learnerID) {
+        const normalizedLearnerID = this._normalizeLearnerID(learnerID);
+        if (!normalizedLearnerID) {
+            return "";
+        }
+        return encodeURIComponent(normalizedLearnerID);
+    }
+
+    _getLearnerProgressDocRef(learnerID) {
+        const learnerDocId = this._getLearnerDocId(learnerID);
+        if (!learnerDocId) {
+            return null;
+        }
+        const collection = this.getCollectionName(learnerProgressOutput);
+        return doc(this.db, collection, learnerDocId);
+    }
+
+    async loadLearnerProgress(learnerID) {
+        if (!ENABLE_FIREBASE) return null;
+
+        const normalizedLearnerID = this._normalizeLearnerID(learnerID);
+        if (!normalizedLearnerID) {
+            return null;
+        }
+
+        const learnerDocRef = this._getLearnerProgressDocRef(normalizedLearnerID);
+        if (!learnerDocRef) {
+            return null;
+        }
+
+        const docSnapshot = await getDoc(learnerDocRef).catch((err) => {
+            console.debug("unable to load learner progress from firestore", err);
+            return null;
+        });
+        if (!docSnapshot || !docSnapshot.exists()) {
+            return null;
+        }
+
+        return docSnapshot.data() || null;
+    }
+
+    async saveLearnerProgress(learnerID, partialPayload = {}) {
+        if (!ENABLE_FIREBASE) return;
+
+        const normalizedLearnerID = this._normalizeLearnerID(learnerID);
+        if (!normalizedLearnerID) {
+            return;
+        }
+
+        const learnerDocRef = this._getLearnerProgressDocRef(normalizedLearnerID);
+        if (!learnerDocRef) {
+            return;
+        }
+
+        const payload = this.addMetaData({
+            learner_id: normalizedLearnerID,
+            ...partialPayload,
+        });
+
+        await setDoc(learnerDocRef, payload, { merge: true }).catch((err) => {
+            console.debug("unable to save learner progress to firestore", err);
+        });
+    }
+
+    async ensureLearnerProgressDocument(learnerID) {
+        if (!ENABLE_FIREBASE) return;
+
+        const normalizedLearnerID = this._normalizeLearnerID(learnerID);
+        if (!normalizedLearnerID) {
+            return;
+        }
+
+        const existingData = await this.loadLearnerProgress(normalizedLearnerID);
+        if (existingData) {
+            return;
+        }
+
+        await this.saveLearnerProgress(normalizedLearnerID, {
+            bktProgress: {},
+            lessonProgressByLesson: {},
+            behaviorMetricsByLesson: {},
+            masteryByLesson: {},
+        });
     }
 
     // TODO: consider using just the context instead
