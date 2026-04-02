@@ -1,13 +1,13 @@
 const styles = theme => ({
     card: {
-        width: 'min(920px, 94%)',
+        width: 'min(1120px, 96%)',
         marginLeft: 'auto',
         marginRight: 'auto',
-        marginBottom: 20,
-        borderRadius: 18,
+        marginBottom: 24,
+        borderRadius: 20,
     },
     hintCard: {
-        width: 'min(760px, 94%)',
+        width: 'min(900px, 96%)',
         marginLeft: 'auto',
         marginRight: 'auto',
         marginBottom: 20,
@@ -26,33 +26,39 @@ const styles = theme => ({
     },
 
     button: {
-        backgroundColor: '#1e9f86',
+        background: 'linear-gradient(120deg, #1e9f86, #45c8ac)',
         color: '#f5fffc',
         borderRadius: 12,
         textTransform: 'none',
         marginLeft: 'auto',
         marginRight: 'auto',
-        paddingLeft: 14,
-        paddingRight: 14,
+        paddingLeft: 16,
+        paddingRight: 16,
+        boxShadow: '0 10px 22px rgba(22,124,103,0.24)',
         width: "auto",
         minWidth: 140,
+        '&:hover': {
+            boxShadow: '0 14px 26px rgba(22,124,103,0.28)',
+            transform: 'translateY(-1px)',
+        },
     },
 
     stepHeader: {
-        //textAlign: 'center',
-        fontSize: 22,
+        fontSize: 24,
         fontFamily: 'Space Grotesk, Outfit, sans-serif',
         marginTop: 0,
-        marginLeft: 10
+        marginLeft: 0,
+        marginBottom: 10,
+        color: '#123a33',
     },
 
     stepBody: {
-        //textAlign: 'center',
         fontSize: 18,
-        lineHeight: 1.7,
+        lineHeight: 1.72,
         marginTop: 10,
-        marginBottom: 30,
-        marginLeft: 10
+        marginBottom: 26,
+        marginLeft: 0,
+        color: '#2d4f4a',
     },
 
     inputField: {
@@ -93,29 +99,35 @@ const styles = theme => ({
 
     // Problem
     prompt: {
-        marginLeft: 0,
-        marginRight: 0,
+        width: '100%',
+        maxWidth: 1180,
+        marginLeft: 'auto',
+        marginRight: 'auto',
         marginTop: 10,
-        textAlign: 'center',
+        textAlign: 'left',
         fontSize: 20,
         fontFamily: 'Space Grotesk, Outfit, sans-serif',
     },
     titleCard: {
-        width: 'min(980px, 94%)',
+        width: 'min(1120px, 96%)',
         marginLeft: 'auto',
         marginRight: 'auto',
-        paddingBottom: 0,
-        borderRadius: 18,
+        paddingBottom: 2,
+        borderRadius: 22,
     },
     problemHeader: {
-        fontSize: 28,
+        fontSize: 36,
         marginTop: 0,
+        marginBottom: 10,
         fontFamily: 'Space Grotesk, Outfit, sans-serif',
+        lineHeight: 1.15,
+        color: '#123a33',
     },
     problemBody: {
         fontSize: 18,
         lineHeight: 1.7,
         marginTop: 10,
+        color: '#2f5b53',
     },
     problemStepHeader: {
         fontSize: 25,

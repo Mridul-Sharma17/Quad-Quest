@@ -845,6 +845,18 @@ class Platform extends React.Component {
         });
     };
 
+    handleLogout = () => {
+        if (typeof this.props.onLogout === "function") {
+            this.props.onLogout();
+        }
+        if (typeof this.props.exitCourse === "function") {
+            this.props.exitCourse();
+        }
+        if (this.props.history?.push) {
+            this.props.history.push("/");
+        }
+    };
+
     updateCanvas = async (mastery, components) => {
         if (this.context.jwt) {
             console.debug("updating canvas with problem score");
@@ -1024,6 +1036,14 @@ class Platform extends React.Component {
                                 {masteryPercent}%
                             </div>
                         ) : null}
+                        <Button
+                            variant="outlined"
+                            color="primary"
+                            className="qq-logout-btn"
+                            onClick={this.handleLogout}
+                        >
+                            Logout
+                        </Button>
                     </div>
                 </div>
 

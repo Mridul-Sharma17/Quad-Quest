@@ -189,6 +189,7 @@ class App extends React.Component {
 
         this.saveProgress = this.saveProgress.bind(this);
         this.handleLearnerLogin = this.handleLearnerLogin.bind(this);
+        this.handleLearnerLogout = this.handleLearnerLogout.bind(this);
     }
 
     handleLearnerLogin(learnerID) {
@@ -205,6 +206,20 @@ class App extends React.Component {
                 studentName:
                     prevState.additionalContext.studentName ||
                     normalizedLearnerID,
+            },
+        }));
+    }
+
+    handleLearnerLogout() {
+        localStorage.removeItem(LEARNER_ID_STORAGE_KEY);
+        this.setState((prevState) => ({
+            learnerID: "",
+            additionalContext: {
+                ...prevState.additionalContext,
+                learnerID: "",
+                studentName: "",
+                jwt: "",
+                user: {},
             },
         }));
     }
@@ -376,6 +391,7 @@ class App extends React.Component {
                                                         this.removeProgress
                                                     }
                                                     lessonID={QUADRILATERAL_LESSON_ID}
+                                                    onLogout={this.handleLearnerLogout}
                                                     {...props}
                                                 />
                                             )}

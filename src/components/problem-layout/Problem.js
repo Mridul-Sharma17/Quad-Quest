@@ -89,6 +89,9 @@ class Problem extends React.Component {
             preRemedialHint: null,
             remediationZone: null,
         };
+
+        this.autoAdvanceHandle = null;
+        this.isMovingToNextProblem = false;
     }
 
     componentDidMount() {
@@ -109,6 +112,8 @@ class Problem extends React.Component {
 
     componentDidUpdate(prevProps) {
         if (prevProps.problem?.id !== this.props.problem?.id) {
+            this.clearAutoAdvanceTimer();
+            this.isMovingToNextProblem = false;
             this.setState({
                 incorrectStepCounts: {},
                 preRemedialHint: null,
@@ -118,9 +123,31 @@ class Problem extends React.Component {
     }
 
     componentWillUnmount() {
+        this.clearAutoAdvanceTimer();
         document["oats-meta-courseName"] = "";
         document["oats-meta-textbookName"] = "";
     }
+
+    clearAutoAdvanceTimer = () => {
+        if (this.autoAdvanceHandle != null) {
+            window.clearTimeout(this.autoAdvanceHandle);
+            this.autoAdvanceHandle = null;
+        }
+    };
+
+    scheduleAutoAdvance = () => {
+        if (this.context.debug || this.isMovingToNextProblem) {
+            return;
+        }
+        if (this.autoAdvanceHandle != null) {
+            return;
+        }
+
+        this.autoAdvanceHandle = window.setTimeout(() => {
+            this.autoAdvanceHandle = null;
+            this.clickNextProblem();
+        }, 900);
+    };
 
     updateCanvas = async (mastery, components) => {
         if (this.context.jwt) {
@@ -352,6 +379,9 @@ class Problem extends React.Component {
             const numAttempted = Object.values(nextStepStates).filter(
                 (stepState) => stepState != null
             ).length;
+            const allCorrect = Object.values(nextStepStates).every(
+                (stepState) => stepState === true
+            );
             // console.log("num attempted: ", numAttempted);
             // console.log("num steps: ", numSteps);
             // console.log("step states: ", Object.values(nextStepStates));
@@ -368,6 +398,10 @@ class Problem extends React.Component {
                     incorrectStepCounts: nextIncorrectStepCounts,
                     preRemedialHint: nextPreRemedialHint,
                     remediationZone: nextRemediationZone,
+                }, () => {
+                    if (allCorrect) {
+                        this.scheduleAutoAdvance();
+                    }
                 });
             }
             // don't attempt to auto scroll to next step
@@ -403,6 +437,8 @@ class Problem extends React.Component {
                     incorrectStepCounts: nextIncorrectStepCounts,
                     preRemedialHint: nextPreRemedialHint,
                     remediationZone: nextRemediationZone,
+                }, () => {
+                    this.scheduleAutoAdvance();
                 });
             }
         } else {
@@ -512,20 +548,29 @@ class Problem extends React.Component {
     };
 
     clickNextProblem = async () => {
+        if (this.isMovingToNextProblem) {
+            return;
+        }
+
+        this.isMovingToNextProblem = true;
+        this.clearAutoAdvanceTimer();
         scroll.scrollToTop({ duration: 900, smooth: true });
+        try {
+            await this.props.problemComplete(this.context);
 
-        await this.props.problemComplete(this.context);
-
-        this.setState({
-            stepStates: {},
-            firstAttempts: {},
-            incorrectStepCounts: {},
-            problemFinished: false,
-            feedback: "",
-            feedbackSubmitted: false,
-            preRemedialHint: null,
-            remediationZone: null,
-        });
+            this.setState({
+                stepStates: {},
+                firstAttempts: {},
+                incorrectStepCounts: {},
+                problemFinished: false,
+                feedback: "",
+                feedbackSubmitted: false,
+                preRemedialHint: null,
+                remediationZone: null,
+            });
+        } finally {
+            this.isMovingToNextProblem = false;
+        }
     };
 
     submitFeedback = () => {
@@ -722,6 +767,17 @@ class Problem extends React.Component {
             return <div></div>;
         }
         const displayProblemTitle = this.getDisplayProblemTitle(problem);
+        const stepStates = this.state.stepStates || {};
+        const totalSteps = Array.isArray(problem?.steps) ? problem.steps.length : 0;
+        const answeredCount = Object.values(stepStates).filter(
+            (stepState) => stepState != null
+        ).length;
+        const correctCount = Object.values(stepStates).filter(
+            (stepState) => stepState === true
+        ).length;
+        const completionPercent = totalSteps > 0
+            ? Math.round((answeredCount / totalSteps) * 100)
+            : 0;
 
         return (
             <>
@@ -733,45 +789,60 @@ class Problem extends React.Component {
                                     "data-selenium-target": "problem-header",
                                 })}
                             >
-                                <h1 className={classes.problemHeader}>
-                                    {renderText(
-                                        displayProblemTitle,
-                                        problem.id,
-                                        chooseVariables(
-                                            problem.variabilization,
-                                            seed
-                                        ),
-                                        this.context
-                                    )}
-                                    <hr />
-                                </h1>
-                                <div className={classes.problemBody}>
-                                    {renderText(
-                                        problem.body,
-                                        problem.id,
-                                        chooseVariables(
-                                            problem.variabilization,
-                                            seed
-                                        ),
-                                        this.context
-                                    )}
-                                </div>
-                                <div
-                                    style={{
-                                        marginTop: 10,
-                                        fontSize: 13,
-                                        color: "#475569",
-                                    }}
-                                >
-                                    Current Stage: Adaptive Assessment
-                                    {lessonQuestionTypes.length > 0
-                                        ? ` | Lesson formats: ${lessonQuestionTypes.join(", ")}`
-                                        : ""}
+                                <div className="qq-assessment-hero-grid">
+                                    <div>
+                                        <h1 className={classes.problemHeader}>
+                                            {renderText(
+                                                displayProblemTitle,
+                                                problem.id,
+                                                chooseVariables(
+                                                    problem.variabilization,
+                                                    seed
+                                                ),
+                                                this.context
+                                            )}
+                                        </h1>
+                                        <div className={classes.problemBody}>
+                                            {renderText(
+                                                problem.body,
+                                                problem.id,
+                                                chooseVariables(
+                                                    problem.variabilization,
+                                                    seed
+                                                ),
+                                                this.context
+                                            )}
+                                        </div>
+                                        <div className="qq-assessment-metrics">
+                                            <span className="qq-metric-pill">
+                                                Current Stage: Adaptive Assessment
+                                            </span>
+                                            <span className="qq-metric-pill">
+                                                Progress: {answeredCount}/{totalSteps} ({completionPercent}%)
+                                            </span>
+                                            <span className="qq-metric-pill">
+                                                Correct Steps: {correctCount}
+                                            </span>
+                                            {lessonQuestionTypes.length > 0 ? (
+                                                <span className="qq-metric-pill">
+                                                    Formats: {lessonQuestionTypes.join(", ")}
+                                                </span>
+                                            ) : null}
+                                        </div>
+                                    </div>
+                                    <div className="qq-assessment-visual" aria-hidden="true">
+                                        <svg width="100%" height="150" viewBox="0 0 280 150" role="img" aria-label="Quadrilateral assessment illustration">
+                                            <polygon points="20,112 120,112 148,42 6,42" fill="#d8f7f0" stroke="#1e9f86" strokeWidth="2" />
+                                            <polygon points="162,108 256,108 274,54 186,34" fill="#eef7ff" stroke="#1d4ed8" strokeWidth="2" />
+                                            <line x1="20" y1="112" x2="120" y2="112" stroke="#167c67" strokeWidth="3" />
+                                            <line x1="6" y1="42" x2="148" y2="42" stroke="#167c67" strokeWidth="3" />
+                                            <text x="16" y="132" fontSize="11" fill="#2d4f4a">Observe properties, then solve.</text>
+                                        </svg>
+                                    </div>
                                 </div>
                             </CardContent>
                         </Card>
-                        <Spacer height={8} />
-                        <hr />
+                        <Spacer height={10} />
                     </div>
                     <div role={"main"}>
                         {preRemedialHint ? (
@@ -935,13 +1006,10 @@ class Problem extends React.Component {
                                 <Grid item xs={2} key={4} />
                             </Grid>
                         ) : (
-                            
-                            <Grid container spacing={0}>
-                                <Grid item xs={3} sm={3} md={5} key={1} />
-                                <Grid item xs={6} sm={6} md={2} key={2}>
+                            <div className="qq-next-wrap">
                                     <Button
                                         className={classes.button}
-                                        style={{ width: "100%" }}
+                                        style={{ width: "auto", minWidth: 170 }}
                                         size="small"
                                         onClick={this.clickNextProblem}
                                         disabled={
@@ -953,10 +1021,13 @@ class Problem extends React.Component {
                                     >
                                         {translate('problem.NextProblem')}
                                     </Button>
-                                </Grid>
-                                <Grid item xs={3} sm={3} md={5} key={3} />
-                            </Grid>
+                            </div>
                         )}
+                        {this.state.problemFinished && !this.context.debug ? (
+                            <div className="qq-auto-advance-note">
+                                Great work. Moving to the next question...
+                            </div>
+                        ) : null}
                     </div>
                 </div>
                 <footer>
