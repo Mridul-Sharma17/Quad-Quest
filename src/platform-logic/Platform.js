@@ -42,6 +42,10 @@ const DEFAULT_TARGET_STAGE_BY_SKILL = {
 
 const BEHAVIOR_LONG_RESPONSE_MS = 15000;
 const BEHAVIOR_LONG_RESPONSE_STREAK_FOR_INTERVENTION = 2;
+const DEFAULT_ACCURACY_INTERVENTION_MESSAGE =
+    "Because you are facing repeated mistakes in this subtopic, revisit this theory section before the next question.";
+const DEFAULT_BEHAVIOR_INTERVENTION_MESSAGE =
+    "Because you are spending more time on this subtopic, revisit this theory section before the next question.";
 
 let seed = Date.now().toString();
 console.log("Generated seed");
@@ -80,6 +84,7 @@ class Platform extends React.Component {
             currProblem: null,
             status: "courseSelection",
             seed: seed,
+            mastery: 0,
             adaptiveTrace: null,
             revisitSkill: null,
             revisitSection: null,
@@ -95,10 +100,52 @@ class Platform extends React.Component {
     }
 
     getLessonStorageKey = () => {
-        return LESSON_PROGRESS_STORAGE_KEY(
-            this.lesson?.id,
-            this.context?.learnerID || ""
+        return LESSON_PROGRESS_STORAGE_KEY(this.lesson?.id);
+    };
+
+    getBehaviorMetricsStorageKey = () => {
+        return `${this.getLessonStorageKey()}:behavior`;
+    };
+
+    calculateLessonMastery = (context = this.context, lesson = this.lesson) => {
+        const objectives = Object.keys(lesson?.learningObjectives || {});
+        if (objectives.length === 0) {
+            return 0;
+        }
+
+        const objectiveMasteries = objectives
+            .map((skill) => Number(context?.bktParams?.[skill]?.probMastery))
+            .filter((mastery) => Number.isFinite(mastery));
+
+        if (objectiveMasteries.length === 0) {
+            return 0;
+        }
+
+        return (
+            objectiveMasteries.reduce((sum, mastery) => sum + mastery, 0) /
+            objectiveMasteries.length
         );
+    };
+
+    loadBehaviorMetrics = async () => {
+        const { getByKey } = this.context.browserStorage;
+        return await getByKey(this.getBehaviorMetricsStorageKey()).catch(
+            () => null
+        );
+    };
+
+    persistBehaviorMetrics = async () => {
+        if (!this.lesson) {
+            return;
+        }
+
+        const payload = {
+            skillDifficultyMap: this.state.skillDifficultyMap || {},
+            pendingTheoryIntervention:
+                this.state.pendingTheoryIntervention || null,
+        };
+        const { setByKey } = this.context.browserStorage;
+        await setByKey(this.getBehaviorMetricsStorageKey(), payload).catch(() => {});
     };
 
     componentDidMount() {
@@ -441,9 +488,10 @@ class Platform extends React.Component {
             );
         };
 
-        const [, prevCompletedProbs] = await Promise.all([
+        const [, prevCompletedProbs, persistedBehaviorMetrics] = await Promise.all([
             this.props.loadBktProgress(),
             loadLessonProgress(),
+            this.loadBehaviorMetrics(),
         ]);
         if (!this._isMounted) {
             console.debug("component not mounted, returning early (2)");
@@ -465,17 +513,23 @@ class Platform extends React.Component {
             null,
             objectives
         );
+        const restoredMastery = this.calculateLessonMastery(
+            this.context,
+            this.lesson
+        );
 
         this.setState(
             {
                 currProblem: null,
                 status: "theory",
+                mastery: restoredMastery,
                 adaptiveTrace: initialAdaptiveTrace,
                 revisitSkill: null,
                 revisitSection: null,
                 interventionMessage: "",
                 pendingTheoryIntervention: null,
-                skillDifficultyMap: {},
+                skillDifficultyMap:
+                    persistedBehaviorMetrics?.skillDifficultyMap || {},
             },
             () => {
                 //console.log(this.state.currProblem);
@@ -549,11 +603,6 @@ class Platform extends React.Component {
         const resolvedTargetSection =
             String(interventionConfig?.targetSection || "").trim() || null;
 
-        const defaultInterventionMessage =
-            "You are making frequent mistakes like this in this subtopic, so it is better to revisit this theory resource before the next question.";
-        const defaultBehaviorInterventionMessage =
-            "You are spending more time on this topic, try this and you will feel more comfortable.";
-
         this.setState((prevState) => {
             const nextSkillDifficultyMap = {
                 ...(prevState.skillDifficultyMap || {}),
@@ -606,9 +655,9 @@ class Platform extends React.Component {
                     message:
                         preferBehaviorMessage
                             ? interventionConfig?.behaviorInterventionMessage ||
-                              defaultBehaviorInterventionMessage
+                                                            DEFAULT_BEHAVIOR_INTERVENTION_MESSAGE
                             : interventionConfig?.interventionMessage ||
-                              defaultInterventionMessage,
+                                                            DEFAULT_ACCURACY_INTERVENTION_MESSAGE,
                     targetStage: resolvedTargetStage,
                     targetSection: resolvedTargetSection,
                     stepId: normalizedStepId || null,
@@ -624,10 +673,17 @@ class Platform extends React.Component {
                 skillDifficultyMap: nextSkillDifficultyMap,
                 pendingTheoryIntervention: candidateIntervention,
             };
+        }, () => {
+            this.persistBehaviorMetrics();
         });
     };
 
-    requestTheoryRevisit = (skillId, targetStage = "", targetSection = "") => {
+    requestTheoryRevisit = (
+        skillId,
+        targetStage = "",
+        targetSection = "",
+        reasonDetails = null
+    ) => {
         if (!this.lesson) {
             return;
         }
@@ -642,6 +698,21 @@ class Platform extends React.Component {
         const normalizedSkill = String(skillId || "").trim();
         const normalizedStage = String(targetStage || "").trim();
         const normalizedSection = String(targetSection || "").trim();
+        const normalizedReasonType = String(
+            reasonDetails?.reasonType || reasonDetails?.triggerType || ""
+        )
+            .trim()
+            .toLowerCase();
+        const explicitReasonMessage = String(reasonDetails?.message || "").trim();
+        const resolvedReasonMessage =
+            explicitReasonMessage ||
+            (normalizedReasonType === "behavior"
+                ? DEFAULT_BEHAVIOR_INTERVENTION_MESSAGE
+                : DEFAULT_ACCURACY_INTERVENTION_MESSAGE);
+        const reasonLead =
+            normalizedReasonType === "behavior"
+                ? "because you are spending more time on this topic"
+                : "because you are facing repeated mistakes in this step";
         const targetStageLabel =
             THEORY_STAGE_LABELS[normalizedStage] || "the recommended stage";
         let nextTrace = adaptiveTrace;
@@ -651,7 +722,9 @@ class Platform extends React.Component {
                 targetSkill: normalizedSkill,
                 targetStage: normalizedStage || null,
                 targetSection: normalizedSection || null,
-                rationale: `Based on your response, revisit ${normalizedSkill} before continuing.`,
+                triggerType: normalizedReasonType || "accuracy",
+                interventionReason: resolvedReasonMessage,
+                rationale: `Revisit ${normalizedSkill} ${reasonLead} before continuing.`,
                 recommendedAction: normalizedStage
                     ? normalizedSection
                         ? `Review ${normalizedSkill} in ${targetStageLabel} (${normalizedSection}), then continue with another adaptive question.`
@@ -665,9 +738,10 @@ class Platform extends React.Component {
             revisitSkill: normalizedSkill || null,
             revisitSection: normalizedSection || null,
             adaptiveTrace: nextTrace,
-            interventionMessage:
-                "You are making frequent mistakes like this in this subtopic, so it is better to revisit this theory resource before the next question.",
+            interventionMessage: resolvedReasonMessage,
             pendingTheoryIntervention: null,
+        }, () => {
+            this.persistBehaviorMetrics();
         });
     };
 
@@ -876,6 +950,19 @@ class Platform extends React.Component {
                 this.state.pendingTheoryIntervention.targetStage || null;
             const targetSection =
                 this.state.pendingTheoryIntervention.targetSection || null;
+            const triggerType =
+                this.state.pendingTheoryIntervention.triggerType || "accuracy";
+            const reasonMessage =
+                this.state.pendingTheoryIntervention.message ||
+                (triggerType === "behavior"
+                    ? DEFAULT_BEHAVIOR_INTERVENTION_MESSAGE
+                    : DEFAULT_ACCURACY_INTERVENTION_MESSAGE);
+            const reasonLead =
+                triggerType === "behavior"
+                    ? "because you are spending more time on this topic"
+                    : triggerType === "mixed"
+                    ? "because you are facing repeated mistakes and spending more time on this topic"
+                    : "because you are facing repeated mistakes in this step";
             const targetStageLabel =
                 THEORY_STAGE_LABELS[targetStage] || "the recommended stage";
             const nextTrace = adaptiveTrace
@@ -884,7 +971,9 @@ class Platform extends React.Component {
                       targetSkill: skill,
                       targetStage,
                       targetSection,
-                      rationale: `You are repeatedly struggling with ${skill}. Review theory before the next question.`,
+                      triggerType,
+                      interventionReason: reasonMessage,
+                      rationale: `Revisit ${skill} ${reasonLead} before the next question.`,
                       recommendedAction: targetStage
                           ? targetSection
                               ? `Complete ${targetStageLabel} for ${skill} (section: ${targetSection}), then continue.`
@@ -899,9 +988,10 @@ class Platform extends React.Component {
                 revisitSkill: skill,
                 revisitSection: targetSection,
                 adaptiveTrace: nextTrace,
-                interventionMessage:
-                    this.state.pendingTheoryIntervention.message,
+                interventionMessage: reasonMessage,
                 pendingTheoryIntervention: null,
+            }, () => {
+                this.persistBehaviorMetrics();
             });
             return;
         }
@@ -936,6 +1026,7 @@ class Platform extends React.Component {
         this.completedProbs = new Set();
         const { removeByKey } = this.context.browserStorage;
         await removeByKey(this.getLessonStorageKey()).catch(() => {});
+        await removeByKey(this.getBehaviorMetricsStorageKey()).catch(() => {});
 
         const objectives = Object.keys(this.lesson.learningObjectives || {});
         const adaptiveTrace = this.buildAdaptiveTrace(
@@ -947,6 +1038,7 @@ class Platform extends React.Component {
         this.setState({
             status: "theory",
             currProblem: null,
+            mastery: 0,
             adaptiveTrace,
             revisitSkill: null,
             revisitSection: null,
@@ -1196,6 +1288,7 @@ class Platform extends React.Component {
                             lessonQuestionTypes={this.getLessonQuestionTypes()}
                             onRequestTheoryRevisit={this.requestTheoryRevisit}
                             onSkillOutcome={this.recordSkillOutcome}
+                            saveProgress={this.props.saveProgress}
                         />
                     </ErrorBoundary>
                 ) : (

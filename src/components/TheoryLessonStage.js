@@ -422,6 +422,23 @@ const TheoryLessonStage = ({
     const focusStage =
         adaptiveTrace?.targetStage || inferStageForSkill(focusSkill);
     const isRevisitMode = Boolean(revisitSkill);
+    const revisitReason = useMemo(() => {
+        const rawReason = String(
+            interventionMessage || adaptiveTrace?.interventionReason || ""
+        ).trim();
+        if (!rawReason) {
+            return "";
+        }
+        if (/^because\b/i.test(rawReason)) {
+            return rawReason;
+        }
+        if (/^(you|your)\b/i.test(rawReason)) {
+            return `Because ${rawReason.charAt(0).toLowerCase()}${rawReason.slice(
+                1
+            )}`;
+        }
+        return `Because ${rawReason}`;
+    }, [interventionMessage, adaptiveTrace]);
 
     const flowPages = useMemo(() => {
         return [
@@ -997,6 +1014,16 @@ const TheoryLessonStage = ({
                     </div>
                 </CardContent>
             </Card>
+
+            {isRevisitMode && revisitReason ? (
+                <Card style={{ borderRadius: 18, marginBottom: 12 }}>
+                    <CardContent>
+                        <div style={{ ...calloutStyle, marginBottom: 0, background: "rgba(255,247,237,0.92)", color: "#7c2d12" }}>
+                            <strong>Why this theory revisit is shown:</strong> {revisitReason}
+                        </div>
+                    </CardContent>
+                </Card>
+            ) : null}
 
             {pageContent}
 

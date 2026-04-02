@@ -328,6 +328,10 @@ class Problem extends React.Component {
             this.updateCanvas(score, relevantKc);
         }
 
+        if (typeof this.props.saveProgress === "function") {
+            this.props.saveProgress();
+        }
+
         const nextStepStates = {
             ...stepStates,
             [cardIndex]: isCorrect,
@@ -561,6 +565,9 @@ class Problem extends React.Component {
             targetStage: interventionConfig?.targetStage || null,
             targetSection,
             targetSectionLabel: targetSectionMeta?.label || "",
+            interventionReason:
+                interventionConfig?.interventionMessage ||
+                "Because you are facing repeated mistakes on this step, revisit the related theory section before continuing.",
             title: theoryCard?.title || "Targeted skill support",
             suggestedSections,
             quickActions: Array.isArray(targetSectionMeta?.quickActions)
@@ -855,6 +862,11 @@ class Problem extends React.Component {
                                             Target section: {remediationZone.targetSectionLabel}
                                         </div>
                                     ) : null}
+                                    {remediationZone.interventionReason ? (
+                                        <div style={{ marginBottom: 8, color: "#7c2d12", fontWeight: 600 }}>
+                                            Reason: {remediationZone.interventionReason}
+                                        </div>
+                                    ) : null}
                                     <div style={{ marginBottom: 6 }}>
                                         {remediationZone.title}
                                     </div>
@@ -892,7 +904,12 @@ class Problem extends React.Component {
                                                 this.props.onRequestTheoryRevisit(
                                                     remediationZone.targetSkill,
                                                     remediationZone.targetStage,
-                                                    remediationZone.targetSection
+                                                    remediationZone.targetSection,
+                                                    {
+                                                        reasonType: "accuracy",
+                                                        message:
+                                                            remediationZone.interventionReason,
+                                                    }
                                                 );
                                             }
                                         }}

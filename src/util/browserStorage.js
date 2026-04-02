@@ -6,13 +6,16 @@ class BrowserStorage {
      * @param key
      * @return {*}
      */
-    getCtxByKey = (key) => this._app['state']['additionalContext'][key]
+    getCtxByKey = (key) => this._app?.state?.additionalContext?.[key]
 
     /**
      * @private
      * @return {*}
      */
-    noRestore = () => this.getCtxByKey('noRestore')
+    noRestore = () => {
+        const noRestoreValue = this.getCtxByKey('noRestore')
+        return String(noRestoreValue || '').trim().toLowerCase() === 'true'
+    }
     /**
      * @private
      */

@@ -380,7 +380,6 @@ class App extends React.Component {
                                             path="/lessons/:lessonID"
                                             render={(props) => (
                                                 <Platform
-                                                    key={Date.now()}
                                                     saveProgress={() =>
                                                         this.saveProgress()
                                                     }
@@ -400,7 +399,6 @@ class App extends React.Component {
                                             path="/debug/:problemID"
                                             render={(props) => (
                                                 <DebugPlatform
-                                                    key={Date.now()}
                                                     saveProgress={() =>
                                                         this.saveProgress()
                                                     }
@@ -421,7 +419,6 @@ class App extends React.Component {
                                             path="/posts"
                                             render={(props) => (
                                                 <Posts
-                                                    key={Date.now()}
                                                     {...props}
                                                 />
                                             )}
@@ -431,7 +428,6 @@ class App extends React.Component {
                                             path="/assignment-not-linked"
                                             render={(props) => (
                                                 <AssignmentNotLinked
-                                                    key={Date.now()}
                                                     {...props}
                                                 />
                                             )}
@@ -441,7 +437,6 @@ class App extends React.Component {
                                             path="/assignment-already-linked"
                                             render={(props) => (
                                                 <AssignmentAlreadyLinked
-                                                    key={Date.now()}
                                                     {...props}
                                                 />
                                             )}
@@ -451,7 +446,6 @@ class App extends React.Component {
                                             path="/session-expired"
                                             render={(props) => (
                                                 <SessionExpired
-                                                    key={Date.now()}
                                                     {...props}
                                                 />
                                             )}
