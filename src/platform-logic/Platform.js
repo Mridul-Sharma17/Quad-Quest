@@ -1,6 +1,5 @@
 import React from "react";
 import Button from "@material-ui/core/Button";
-import LinearProgress from "@material-ui/core/LinearProgress";
 import ProblemWrapper from "@components/problem-layout/ProblemWrapper.js";
 import TheoryLessonStage from "@components/TheoryLessonStage.js";
 import { withRouter } from "react-router-dom";
@@ -1294,33 +1293,12 @@ class Platform extends React.Component {
                 },
             });
         }
-        if (mastery >= MASTERY_THRESHOLD) {
-            toast.success("You've successfully completed this assignment!", {
-                toastId: ToastID.successfully_completed_lesson.toString(),
-            });
-        }
     };
 
     render() {
-        const { translate } = this.props;
-        const learnerIDText = String(this.context.learnerID || "").trim();
-        const studentNameText = String(this.context.studentName || "").trim();
-        const shouldShowStudentName =
-            studentNameText.length > 0 && studentNameText !== learnerIDText;
-        this.studentNameDisplay = shouldShowStudentName
-            ? decodeURIComponent(studentNameText) + " | "
-            : "";
-        this.learnerIDDisplay = learnerIDText
-            ? `Learner ${learnerIDText} | `
-            : "";
         const lessonTitle = this.lesson
             ? `${this.lesson.name} ${this.lesson.topics}`
             : "Understanding Quadrilaterals";
-        const showMasteryText =
-            this.state.status !== "courseSelection" &&
-            this.state.status !== "lessonSelection" &&
-            (this.lesson?.showStuMastery == null || this.lesson?.showStuMastery);
-        const masteryPercent = Math.round((this.state.mastery || 0) * 100);
         return (
             <div
                 className="qq-shell"
@@ -1340,14 +1318,6 @@ class Platform extends React.Component {
                         </div>
                     </div>
                     <div className="qq-hero-right">
-                        {showMasteryText ? (
-                            <div className="qq-mastery-chip">
-                                {this.learnerIDDisplay}
-                                {this.studentNameDisplay}
-                                {translate("platform.Mastery")}
-                                {masteryPercent}%
-                            </div>
-                        ) : null}
                         <Button
                             variant="outlined"
                             color="primary"
@@ -1358,21 +1328,6 @@ class Platform extends React.Component {
                         </Button>
                     </div>
                 </div>
-
-                {/* Progress Bar */}
-                {this.lesson?.enableCompletionMode && (
-                    <div className="qq-progress-card" style={{ padding: "10px 20px" }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 8 }}>
-                            <span>Progress</span>
-                            <span>{this.getProgressBarData().percent}% ({this.getProgressBarData().completed}/{this.getProgressBarData().total})</span>
-                        </div>
-                        <LinearProgress
-                            variant="determinate"
-                            value={this.getProgressBarData().percent}
-                            style={{ height: 10, borderRadius: 999 }}
-                        />
-                    </div>
-                )}
 
                 {(this.state.status === "courseSelection" ||
                     this.state.status === "lessonSelection") && (

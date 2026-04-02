@@ -1,142 +1,95 @@
-# Quest Quads Learn
+# Quad-Quests
 
-Quest Quads Learn is a theory-first, adaptive chapter experience for Class 8 quadrilaterals built on the OATutor runtime.
+Quad-Quests is a theory-first, adaptive learning experience for Class 8 Quadrilaterals.
 
-This README documents our chapter implementation: content scope, learner model, adaptation logic, workflow, and deployment.
+Learners do not jump straight into random questions. They read concept blocks, interact with visual tools, and then move into an adaptive quiz that reacts to both mistakes and behavior.
 
-## Chapter Scope
+## What Makes Quad-Quests Different
+
+- Structured theory stage before assessment
+- Interactive visual lab for geometry intuition
+- Adaptive question selection based on learner performance
+- Step-level hints and remedial support
+- Behavior-based interventions (not just correctness-based)
+- Learner-tagged persistence in Firestore for cross-device continuity
+
+## Chapter Snapshot
 
 - Course: Class 8 Quadrilaterals
-- Lesson: Lesson 1 - Quadrilateral Basics
-- Learning objectives:
+- Lesson: `class8-quad-lesson-1`
+- Skills:
   - `quad.classify`
   - `quad.properties`
   - `quad.reasoning`
+- Adaptive item bank: `qq8quad001` to `qq8quad010`
 
-## Chapter Content
+## Learner Journey
 
-### Item Bank (Adaptive Assessment)
+1. Login with learner ID.
+2. Enter theory flow (dashboard, subtopics, visual lab, ready check).
+3. Start adaptive quiz.
+4. Receive question-level hints on struggle.
+5. Trigger remedial zone when difficulty persists.
+6. Revisit targeted subtopic with explicit reason:
+   - repeated mistakes
+   - spending more time on a subtopic
+7. Continue quiz with adaptive next-question selection.
 
-The chapter currently uses 10 adaptive questions (1 step each):
+## Adaptive Engine Behavior
 
-1. `qq8quad001`: Identify the quadrilateral by properties
-2. `qq8quad002`: Identify a square
-3. `qq8quad003`: Identify a rhombus
-4. `qq8quad004`: Identify a trapezium
-5. `qq8quad005`: Identify a kite
-6. `qq8quad006`: Sum of interior angles
-7. `qq8quad007`: Opposite angles in parallelogram
-8. `qq8quad008`: Adjacent angles in parallelogram
-9. `qq8quad009`: Quadrilateral hierarchy check
-10. `qq8quad010`: Perimeter of a rectangle
+The platform updates skill estimates continuously and uses them to choose what comes next.
 
-Answer formats are mixed (`TextBox` and `MultipleChoice`) with string and numeric evaluation.
+- Correctness signal:
+  - repeated incorrect attempts trigger accuracy-based remediation.
+- Behavior signal:
+  - long response durations on same subtopic trigger behavior-based remediation.
+- Selection strategy:
+  - next questions are chosen to probe weaker areas more frequently.
 
-### Theory Cards
+## Remediation and Explainability
 
-Theory is authored per objective in `src/content-sources/oatutor/theoryCards.json` and includes:
+When intervention is triggered, learners see:
 
-- summary + key points
-- deep-dive explanations
-- worked examples
-- common errors
-- revisit/recovery actions
-- quick checks
+- Which skill is weak
+- Which section to revisit
+- Why revisit is being suggested
+- Quick action checklist before retry
 
-## Core Features
+This is designed to make the adaptation explainable, not opaque.
 
-### 1) Theory-First Flow
+## Learner Data Persistence (Database-Backed)
 
-Learners always begin in a structured theory stage before adaptive assessment:
+Quad-Quests stores learner state in Firestore by learner ID so progress survives:
 
-- Dashboard
-- Skill pages (Classification, Properties, Reasoning)
-- Visual Lab
-- Ready Check
+- page refresh
+- logout/login
+- device changes
 
-This is implemented in `src/components/TheoryLessonStage.js` and launched from `src/platform-logic/Platform.js`.
+Stored state includes:
 
-### 2) Interactive Visual Lab
+- skill progress (`bktProgress`)
+- lesson progress (`lessonProgressByLesson`)
+- behavior metrics (`behaviorMetricsByLesson`)
+- optional mastery snapshots (`masteryByLesson`)
 
-`src/components/QuadrilateralPropertyLab.js` provides interactive shape morphing and challenge modes for concept reinforcement.
+Collection used:
 
-### 3) Adaptive Question Selection
+- `learnerProgress` (doc ID = encoded learner_id)
 
-Questions are selected with BKT-informed heuristics (default: weakest mastery first) using:
+## Instructor Demo Checklist (10-15 min)
 
-- `src/models/BKT/problem-select-heuristics/defaultHeuristic.js`
-- `src/platform-logic/Platform.js`
+Use this checklist for walkthrough/demo sessions:
 
-### 4) Step-Level Hinting and Remediation
-
-Inside `src/components/problem-layout/Problem.js`:
-
-- First wrong attempt: targeted pre-remedial hint
-- Repeated wrong attempt: remediation zone with quick actions, quick check, and theory revisit action
-- Correct completion: auto-advance to the next adaptive question
-
-### 5) Behavior-Aware Theory Interventions
-
-`Platform.recordSkillOutcome` tracks per-skill difficulty patterns:
-
-- accuracy triggers (recent/total incorrect trends)
-- behavior triggers (long response-time streaks)
-
-When thresholds are crossed, the learner is routed back to a targeted theory stage before continuing.
-
-### 6) Learner Gate + Progress Persistence
-
-- Learner login gate (`LearnerLoginGate`) is required unless LMS JWT is present.
-- Mastery and lesson progress are persisted in browser storage and optionally logged to Firebase.
-
-## Learner Model and Logic
-
-### Bayesian Knowledge Tracing (BKT)
-
-Skill mastery is updated on answer submission using `src/models/BKT/BKT-brain.js`:
-
-- posterior update from correctness + slip/guess
-- transition update via `probTransit`
-
-Mastery target is controlled by `MASTERY_THRESHOLD` (currently `0.95`) in `src/config/config.js`.
-
-### Adaptive Trace
-
-For every selected question, the platform computes an adaptive trace that includes:
-
-- target skill
-- target mastery
-- rationale for why this question was chosen
-- recommended action (practice vs theory revisit)
-
-This drives explainable adaptation in both theory and assessment stages.
-
-## End-to-End Workflow
-
-1. Learner logs in (or enters via LMS).
-2. Lesson starts in Theory Stage.
-3. Learner navigates structured theory pages.
-4. Learner begins Stage 2 adaptive assessment.
-5. System selects question based on weakest objective mastery.
-6. Learner attempts step; BKT updates on submit.
-7. If errors persist or behavior indicates struggle, targeted intervention routes learner to theory.
-8. Correct completion auto-advances to next item.
-9. Session ends on mastery completion or pool exhaustion.
-
-## Content Pipeline
-
-Raw chapter problems/hints are stored in:
-
-- `src/content-sources/oatutor/content-pool/*`
-
-Before start/build, preprocessing runs:
-
-- `src/tools/preprocessProblemPool.js`
-
-This generates:
-
-- `generated/processed-content-pool/oatutor.json`
-- static figure assets under `public/static/images/figures/oatutor`
+1. Open the app and login with a learner ID.
+2. Read one theory section carefully.
+3. Interact with visual tools in the visual lab.
+4. Start the adaptive quiz.
+5. Use hints once on a question.
+6. Submit wrong answers twice on the same step to trigger remedial zone.
+7. Observe suggested subtopic + explicit reason message.
+8. Spend ~15 seconds each on two questions from same subtopic.
+9. Observe behavior-based intervention trigger.
+10. Continue solving and observe adaptive variation in question sequence.
 
 ## Local Development
 
@@ -145,82 +98,52 @@ npm install
 npm start
 ```
 
-App runs on `http://localhost:3001`.
+Default local URL:
 
-Build:
+- `http://localhost:3001`
 
-```bash
-npm run build
-```
-
-## Deployment Setup (Vercel + Firebase CLI)
-
-This repo now includes:
-
-- `vercel.json` for production static deploys
-- `firebase.json` for Firebase Hosting SPA rewrites
-- npm scripts for login and deploy flows
-
-### One-time setup
-
-```bash
-npm install
-npm run vercel:login
-npm run firebase:login
-npm run firebase:use
-```
-
-`firebase:use` links your Firebase project and creates local project mapping.
-
-### Deploy to Vercel (public by default)
-
-```bash
-npm run deploy:vercel
-```
-
-### Deploy to Firebase Hosting
+Production build check:
 
 ```bash
 npm run build
+```
+
+## Deployment
+
+Vercel:
+
+```bash
+npm run deploy:vercel -- --archive=tgz
+```
+
+Firebase Hosting:
+
+```bash
 npm run deploy:firebase
 ```
 
-### Deploy both
+Deploy both:
 
 ```bash
 npm run deploy:all
 ```
 
-## Public URL Verification
+## Project Structure (Core)
 
-After deployment:
+- `src/App.js`: app shell, learner login state, progress load/save hooks
+- `src/platform-logic/Platform.js`: lesson orchestration, adaptation, progression, interventions
+- `src/components/problem-layout/Problem.js`: step attempts, hints, remedial zone, next-problem transition
+- `src/components/TheoryLessonStage.js`: theory flow and targeted revisit UI
+- `src/components/Firebase.js`: logging + learner progress persistence APIs
+- `src/content-sources/interventionMap.json`: subtopic intervention mapping
+- `generated/processed-content-pool/oatutor.json`: runtime processed adaptive pool
 
-- Vercel prints a production URL in terminal output.
-- Firebase Hosting URL format is `https://<project-id>.web.app` (and `firebaseapp.com` mirror).
+## Quick QA Scenarios
 
-Verify with:
-
-```bash
-curl -I <your-deployed-url>
-```
-
-Look for an HTTP `200` response.
-
-## Important Env Options
-
-- `REACT_APP_FIREBASE_CONFIG` (optional, base64 JSON) for runtime Firebase config injection
-- `AI_HINT_GENERATION_AWS_ENDPOINT` (optional) for dynamic hint generation
-
-## Relevant Files
-
-- `src/App.js`
-- `src/platform-logic/Platform.js`
-- `src/components/TheoryLessonStage.js`
-- `src/components/QuadrilateralPropertyLab.js`
-- `src/components/problem-layout/Problem.js`
-- `src/models/BKT/BKT-brain.js`
-- `src/models/BKT/problem-select-heuristics/defaultHeuristic.js`
-- `src/content-sources/oatutor/coursePlans.json`
-- `src/content-sources/oatutor/skillModel.json`
-- `src/content-sources/oatutor/theoryCards.json`
-- `src/content-sources/interventionMap.json`
+1. Login as learner A, solve 2-3 questions, refresh, verify state restored.
+2. Logout, login as learner B, verify learner A data is not shown.
+3. Login learner A on another device/browser, verify continuity.
+4. Trigger both intervention paths:
+   - repeated wrong attempts
+   - long response behavior
+5. Verify next-question transitions work by click and auto-advance.

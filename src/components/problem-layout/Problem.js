@@ -743,17 +743,6 @@ class Problem extends React.Component {
             return <div></div>;
         }
         const displayProblemTitle = this.getDisplayProblemTitle(problem);
-        const stepStates = this.state.stepStates || {};
-        const totalSteps = Array.isArray(problem?.steps) ? problem.steps.length : 0;
-        const answeredCount = Object.values(stepStates).filter(
-            (stepState) => stepState != null
-        ).length;
-        const correctCount = Object.values(stepStates).filter(
-            (stepState) => stepState === true
-        ).length;
-        const completionPercent = totalSteps > 0
-            ? Math.round((answeredCount / totalSteps) * 100)
-            : 0;
 
         return (
             <>
@@ -792,12 +781,6 @@ class Problem extends React.Component {
                                         <div className="qq-assessment-metrics">
                                             <span className="qq-metric-pill">
                                                 Current Stage: Adaptive Assessment
-                                            </span>
-                                            <span className="qq-metric-pill">
-                                                Progress: {answeredCount}/{totalSteps} ({completionPercent}%)
-                                            </span>
-                                            <span className="qq-metric-pill">
-                                                Correct Steps: {correctCount}
                                             </span>
                                             {lessonQuestionTypes.length > 0 ? (
                                                 <span className="qq-metric-pill">
