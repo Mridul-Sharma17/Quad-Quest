@@ -12,18 +12,13 @@ import {
     renderText,
 } from "../../platform-logic/renderText.js";
 import styles from "./common-styles.js";
-import IconButton from "@material-ui/core/IconButton";
-import TextField from "@material-ui/core/TextField";
 import { NavLink } from "react-router-dom";
-import HelpOutlineOutlinedIcon from "@material-ui/icons/HelpOutlineOutlined";
-import FeedbackOutlinedIcon from "@material-ui/icons/FeedbackOutlined";
 import withTranslation from "../../util/withTranslation.js"
 
 import {
     CANVAS_WARNING_STORAGE_KEY,
     MIDDLEWARE_URL,
     SHOW_NOT_CANVAS_WARNING,
-    SITE_NAME,
     ThemeContext,
 } from "../../config/config.js";
 import { toast } from "react-toastify";
@@ -32,8 +27,6 @@ import ToastID from "../../util/toastIds";
 import Spacer from "../Spacer";
 import { stagingProp } from "../../util/addStagingProperty";
 import { cleanArray } from "../../util/cleanObject";
-import Popup from '../Popup/Popup.js';
-import About from '../../pages/Posts/About.js';
 import theoryCards from "../../content-sources/oatutor/theoryCards.json";
 import interventionMap from "../../content-sources/interventionMap.json";
 import QuadrilateralPropertyLab from "../QuadrilateralPropertyLab";
@@ -82,10 +75,6 @@ class Problem extends React.Component {
             firstAttempts: {},
             incorrectStepCounts: {},
             problemFinished: false,
-            showFeedback: false,
-            feedback: "",
-            feedbackSubmitted: false,
-            showPopup: false,
             preRemedialHint: null,
             remediationZone: null,
         };
@@ -563,44 +552,12 @@ class Problem extends React.Component {
                 firstAttempts: {},
                 incorrectStepCounts: {},
                 problemFinished: false,
-                feedback: "",
-                feedbackSubmitted: false,
                 preRemedialHint: null,
                 remediationZone: null,
             });
         } finally {
             this.isMovingToNextProblem = false;
         }
-    };
-
-    submitFeedback = () => {
-        const { problem } = this.props;
-
-        console.debug("problem when submitting feedback", problem);
-        this.context.firebase.submitFeedback(
-            problem.id,
-            this.state.feedback,
-            this.state.problemFinished,
-            chooseVariables(problem.variabilization, this.props.seed),
-            problem.courseName,
-            problem.steps,
-            problem.lesson
-        );
-        this.setState({ feedback: "", feedbackSubmitted: true });
-    };
-
-    toggleFeedback = () => {
-        scroll.scrollToBottom({ duration: 500, smooth: true });
-        this.setState((prevState) => ({
-            showFeedback: !prevState.showFeedback,
-        }));
-    };
-    
-    togglePopup = () => {
-        console.log("Toggling popup visibility");
-        this.setState((prevState) => ({
-          showPopup: !prevState.showPopup,
-        }));
     };
 
     _getNextDebug = (offset) => {
@@ -650,37 +607,6 @@ class Problem extends React.Component {
                 "Read the theory first and then attempt the step.",
             theoryCard,
         };
-    };
-
-    getOerLicense = () => {
-        const { lesson, problem } = this.props;
-        const parseLinkAndName = (raw) => {
-            if (!raw) {
-                return ["", ""];
-            }
-
-            const value = String(raw).trim();
-            const match = value.match(/^([^<]+?)\s*<([^>]+)>$/);
-            if (match) {
-                return [match[1].trim(), match[2].trim()];
-            }
-
-            if (/^https?:\/\//i.test(value)) {
-                return [value, value];
-            }
-
-            // Plain text notes are valid but not clickable links.
-            return ["", value];
-        };
-
-        const [oerLink, oerName] = parseLinkAndName(
-            problem.oer || lesson.courseOER
-        );
-        const [licenseLink, licenseName] = parseLinkAndName(
-            problem.license || lesson.courseLicense
-        );
-
-        return [oerLink, oerName, licenseLink, licenseName];
     };
 
     normalizeProblemText = (value) => {
@@ -744,8 +670,6 @@ class Problem extends React.Component {
     render() {
         const { translate } = this.props;
         const { classes, problem, seed } = this.props;
-        const [oerLink, oerName, licenseLink, licenseName] =
-            this.getOerLicense();
         const assessmentFormats = Array.from(
             new Set(
                 (problem?.steps || []).map((step) => {
@@ -762,7 +686,7 @@ class Problem extends React.Component {
         const lessonQuestionTypes = Array.isArray(this.props.lessonQuestionTypes)
             ? this.props.lessonQuestionTypes
             : assessmentFormats;
-        const { showPopup, preRemedialHint, remediationZone } = this.state;
+        const { preRemedialHint, remediationZone } = this.state;
         if (problem == null) {
             return <div></div>;
         }
@@ -1012,12 +936,7 @@ class Problem extends React.Component {
                                         style={{ width: "auto", minWidth: 170 }}
                                         size="small"
                                         onClick={this.clickNextProblem}
-                                        disabled={
-                                            !(
-                                                this.state.problemFinished ||
-                                                this.state.feedbackSubmitted
-                                            )
-                                        }
+                                        disabled={!this.state.problemFinished}
                                     >
                                         {translate('problem.NextProblem')}
                                     </Button>
@@ -1030,192 +949,6 @@ class Problem extends React.Component {
                         ) : null}
                     </div>
                 </div>
-                <footer>
-                    <div
-                        style={{
-                            display: "flex",
-                            flexDirection: "row",
-                            alignItems: "center",
-                        }}
-                    >
-                        <div style={{ marginLeft: 20, fontSize: 12 }}>
-                            {licenseName !== "" && licenseLink !== "" ? (
-                                <div>
-                                    "{displayProblemTitle}" {translate('problem.Derivative')}&nbsp;
-                                    <a
-                                        href={oerLink}
-                                        target="_blank"
-                                        rel="noreferrer"
-                                    >
-                                        "{oerName}"
-                                    </a>
-                                    {translate('problem.Used')}&nbsp;
-                                    <a
-                                        href={licenseLink}
-                                        target="_blank"
-                                        rel="noreferrer"
-                                    >
-                                        {licenseName}
-                                    </a>
-                                </div>
-                            ) : (
-                                <div>
-                                {oerName !== "" && oerLink !== "" ? (
-                                <div>
-                                    "{displayProblemTitle}" {translate('problem.Derivative')}&nbsp;
-                                    <a
-                                        href={oerLink}
-                                        target="_blank"
-                                        rel="noreferrer"
-                                    >
-                                        "{oerName}"
-                                    </a>
-                                </div>
-                            ) : (
-                                <></>
-                            )}
-                            </div>
-                            )}
-                        </div>
-                        <div
-                            style={{
-                                display: "flex",
-                                flexGrow: 1,
-                                marginRight: 20,
-                                justifyContent: "flex-end",
-                            }}
-                        >
-                            <IconButton
-                                aria-label="about"
-                                title={`About ${SITE_NAME}`}
-                                onClick={this.togglePopup}
-                            >
-                                <HelpOutlineOutlinedIcon
-                                    htmlColor={"#000"}
-                                    style={{
-                                        fontSize: 36,
-                                        margin: -2,
-                                    }}
-                                />
-                            </IconButton>
-                            <IconButton
-                                aria-label="report problem"
-                                onClick={this.toggleFeedback}
-                                title={"Report Problem"}
-                            >
-                                <FeedbackOutlinedIcon
-                                    htmlColor={"#000"}
-                                    style={{
-                                        fontSize: 32,
-                                    }}
-                                />
-                            </IconButton>
-                        </div>
-                        <Popup isOpen={showPopup} onClose={this.togglePopup}>
-                            <About />
-                        </Popup>
-                    </div>
-                    {this.state.showFeedback ? (
-                        <div className="Feedback">
-                            <center>
-                                <h1>{translate('problem.Feedback')}</h1>
-                            </center>
-                            <div className={classes.textBox}>
-                                <div className={classes.textBoxHeader}>
-                                    <center>
-                                        {this.state.feedbackSubmitted
-                                            ? translate('problem.Thanks')
-                                            : translate('problem.Description')}
-                                    </center>
-                                </div>
-                                {this.state.feedbackSubmitted ? (
-                                    <Spacer />
-                                ) : (
-                                    <Grid container spacing={0}>
-                                        <Grid
-                                            item
-                                            xs={1}
-                                            sm={2}
-                                            md={2}
-                                            key={1}
-                                        />
-                                        <Grid
-                                            item
-                                            xs={10}
-                                            sm={8}
-                                            md={8}
-                                            key={2}
-                                        >
-                                            <TextField
-                                                id="outlined-multiline-flexible"
-                                                label={translate('problem.Response')}
-                                                multiline
-                                                fullWidth
-                                                minRows="6"
-                                                maxRows="20"
-                                                value={this.state.feedback}
-                                                onChange={(event) =>
-                                                    this.setState({
-                                                        feedback:
-                                                            event.target.value,
-                                                    })
-                                                }
-                                                className={classes.textField}
-                                                margin="normal"
-                                                variant="outlined"
-                                            />{" "}
-                                        </Grid>
-                                        <Grid
-                                            item
-                                            xs={1}
-                                            sm={2}
-                                            md={2}
-                                            key={3}
-                                        />
-                                    </Grid>
-                                )}
-                            </div>
-                            {this.state.feedbackSubmitted ? (
-                                ""
-                            ) : (
-                                <div className="submitFeedback">
-                                    <Grid container spacing={0}>
-                                        <Grid
-                                            item
-                                            xs={3}
-                                            sm={3}
-                                            md={5}
-                                            key={1}
-                                        />
-                                        <Grid item xs={6} sm={6} md={2} key={2}>
-                                            <Button
-                                                className={classes.button}
-                                                style={{ width: "100%" }}
-                                                size="small"
-                                                onClick={this.submitFeedback}
-                                                disabled={
-                                                    this.state.feedback === ""
-                                                }
-                                            >
-                                                {translate('problem.Submit')}
-                                            </Button>
-                                        </Grid>
-                                        <Grid
-                                            item
-                                            xs={3}
-                                            sm={3}
-                                            md={5}
-                                            key={3}
-                                        />
-                                    </Grid>
-                                    <Spacer />
-                                </div>
-                            )}
-                        </div>
-                    ) : (
-                        ""
-                    )}
-                </footer>
             </>
         );
     }
