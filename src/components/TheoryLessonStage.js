@@ -392,6 +392,7 @@ const TheoryLessonStage = ({
     lesson,
     adaptiveTrace,
     revisitSkill,
+    revisitSection,
     interventionMessage,
     onBeginAssessment,
 }) => {
@@ -416,6 +417,8 @@ const TheoryLessonStage = ({
         adaptiveTrace?.targetSkill ||
         objectiveSkills[0] ||
         "quad.classify";
+    const focusSectionId =
+        String(revisitSection || adaptiveTrace?.targetSection || "").trim();
     const focusStage =
         adaptiveTrace?.targetStage || inferStageForSkill(focusSkill);
     const isRevisitMode = Boolean(revisitSkill);
@@ -452,6 +455,17 @@ const TheoryLessonStage = ({
         return index >= 0 ? index : 0;
     }, [flowPages]);
 
+    const revisitStartIndex = useMemo(() => {
+        if (!isRevisitMode) {
+            return 0;
+        }
+        const skillIndex = flowPages.findIndex((page) => page.skillId === focusSkill);
+        if (skillIndex >= 0) {
+            return skillIndex;
+        }
+        return highlightedSectionIndex >= 0 ? highlightedSectionIndex : 0;
+    }, [isRevisitMode, flowPages, focusSkill, highlightedSectionIndex]);
+
     const resumePageId = useMemo(() => {
         return readTheoryResumePage(lesson?.id);
     }, [lesson?.id]);
@@ -469,16 +483,16 @@ const TheoryLessonStage = ({
     }, [flowPages, resumePageId]);
 
     const [pageIndex, setPageIndex] = useState(
-        isRevisitMode ? 0 : Math.max(0, resumePageIndex)
+        isRevisitMode ? Math.max(0, revisitStartIndex) : Math.max(0, resumePageIndex)
     );
 
     useEffect(() => {
         if (isRevisitMode) {
-            setPageIndex(0);
+            setPageIndex(Math.max(0, revisitStartIndex));
             return;
         }
         setPageIndex(Math.max(0, resumePageIndex));
-    }, [isRevisitMode, resumePageIndex, lesson?.id]);
+    }, [isRevisitMode, revisitStartIndex, resumePageIndex, lesson?.id]);
 
     const activePage = flowPages[pageIndex] || flowPages[0];
     const totalPages = flowPages.length;
@@ -512,8 +526,37 @@ const TheoryLessonStage = ({
         return theoryCards?.[skillId] || fallbackTheoryCard(skillId);
     }, [activePage]);
 
+    const resolveSectionMeta = (skillId, sectionId) => {
+        if (!skillId || !sectionId) {
+            return null;
+        }
+        const skillCard = theoryCards?.[skillId];
+        if (!skillCard || !Array.isArray(skillCard.sections)) {
+            return null;
+        }
+        return (
+            skillCard.sections.find(
+                (section) => String(section?.id || "").trim() === sectionId
+            ) || null
+        );
+    };
+
+    const focusSectionMeta = useMemo(() => {
+        return resolveSectionMeta(focusSkill, focusSectionId);
+    }, [focusSkill, focusSectionId]);
+
+    const focusSectionLabel = focusSectionMeta?.label || "";
+
     const renderSkillPage = (skillId) => {
         const card = activeTheoryCard || fallbackTheoryCard(skillId);
+        const sectionCards = Array.isArray(card.sections) ? card.sections : [];
+        const highlightedSection =
+            skillId === focusSkill
+                ? sectionCards.find(
+                      (section) =>
+                          String(section?.id || "").trim() === focusSectionId
+                  ) || null
+                : null;
 
         return (
             <Card style={{ borderRadius: 18, marginBottom: 12 }}>
@@ -527,6 +570,12 @@ const TheoryLessonStage = ({
                     <p style={{ marginTop: 0, lineHeight: 1.65, color: "#2d5a53" }}>
                         {card.summary}
                     </p>
+
+                    {highlightedSection ? (
+                        <div style={{ ...calloutStyle, background: "rgba(255,247,237,0.9)", border: "1px solid rgba(249,115,22,0.38)" }}>
+                            <strong>Target revisit section:</strong> {highlightedSection.label}
+                        </div>
+                    ) : null}
 
                     <div style={sectionTitleStyle}>Visual Walkthrough</div>
                     <div
@@ -576,6 +625,53 @@ const TheoryLessonStage = ({
                     <div style={{ marginBottom: 12 }}>
                         {renderSkillExercise(skillId)}
                     </div>
+
+                    {sectionCards.length > 0 ? (
+                        <>
+                            <div style={sectionTitleStyle}>Subtopic Sections</div>
+                            <div style={{ display: "grid", gap: 10, marginBottom: 12 }}>
+                                {sectionCards.map((section) => {
+                                    const isHighlighted =
+                                        skillId === focusSkill &&
+                                        String(section?.id || "").trim() === focusSectionId;
+                                    return (
+                                        <div
+                                            key={section.id || section.label}
+                                            style={{
+                                                borderRadius: 12,
+                                                border: isHighlighted
+                                                    ? "1px solid rgba(249,115,22,0.45)"
+                                                    : "1px solid rgba(22,124,103,0.2)",
+                                                background: isHighlighted
+                                                    ? "rgba(255,247,237,0.88)"
+                                                    : "rgba(255,255,255,0.74)",
+                                                padding: "10px 12px",
+                                            }}
+                                        >
+                                            <div style={{ fontWeight: 700, marginBottom: 6 }}>
+                                                {section.label || section.id}
+                                            </div>
+                                            {section.focus ? (
+                                                <div style={{ marginBottom: 6 }}>{section.focus}</div>
+                                            ) : null}
+                                            {Array.isArray(section.details) && section.details.length > 0 ? (
+                                                <ul style={{ marginTop: 0, marginBottom: 6, paddingLeft: 18, lineHeight: 1.6 }}>
+                                                    {section.details.map((item) => (
+                                                        <li key={item}>{item}</li>
+                                                    ))}
+                                                </ul>
+                                            ) : null}
+                                            {section.microPractice ? (
+                                                <div style={{ fontSize: 12, color: "#355d57" }}>
+                                                    <strong>Micro practice:</strong> {section.microPractice}
+                                                </div>
+                                            ) : null}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </>
+                    ) : null}
 
                     {Array.isArray(card.keyPoints) && card.keyPoints.length > 0 ? (
                         <>
@@ -702,6 +798,12 @@ const TheoryLessonStage = ({
                         {` - ${recommendedStageLabel}`}
                     </div>
 
+                    {focusSectionLabel ? (
+                        <div style={{ ...calloutStyle, background: "rgba(255,247,237,0.92)", color: "#7c2d12" }}>
+                            Target section to review now: <strong>{focusSectionLabel}</strong>
+                        </div>
+                    ) : null}
+
                     {revisitSkill ? (
                         <div style={{ ...calloutStyle, background: "rgba(255, 247, 237, 0.92)", color: "#7c2d12" }}>
                             Revisit requested for {SKILL_LABELS[revisitSkill] || revisitSkill}.
@@ -794,6 +896,12 @@ const TheoryLessonStage = ({
                     <div style={{ ...calloutStyle, marginTop: 12, marginBottom: 12 }}>
                         Adaptive focus is pinned automatically to <strong>{SKILL_LABELS[focusSkill] || focusSkill}</strong> so you can concentrate on the right subtopic.
                     </div>
+
+                    {focusSectionLabel ? (
+                        <div style={{ ...calloutStyle, background: "rgba(255,247,237,0.92)", color: "#7c2d12" }}>
+                            Suggested section during this revisit: <strong>{focusSectionLabel}</strong>
+                        </div>
+                    ) : null}
 
                     <QuadrilateralPropertyLab skillId={focusSkill} />
                 </CardContent>

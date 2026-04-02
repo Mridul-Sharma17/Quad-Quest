@@ -296,6 +296,91 @@
           ]
         }
       ]
+    },
+    {
+      "problemId": "qq8quad009",
+      "title": "Quadrilateral hierarchy check",
+      "body": "A learner says: Every square is also a rectangle and also a rhombus. Is this statement always true?",
+      "oer": "",
+      "license": "",
+      "stepId": "qq8quad009a",
+      "problemType": "MultipleChoice",
+      "stepTitle": "Choose the correct statement",
+      "stepBody": "Select the best option.",
+      "answerType": "string",
+      "stepAnswer": [
+        "always true"
+      ],
+      "choices": [
+        "always true",
+        "always false",
+        "true only for some squares",
+        "cannot be decided"
+      ],
+      "skillTags": [
+        "quad.classify",
+        "quad.reasoning"
+      ],
+      "hints": [
+        {
+          "id": "qq8quad009a-h1",
+          "type": "hint",
+          "title": "Use definition overlap",
+          "text": "A square satisfies both: all angles right (rectangle) and all sides equal (rhombus).",
+          "dependencies": []
+        },
+        {
+          "id": "qq8quad009a-h2",
+          "type": "hint",
+          "title": "Think in sets",
+          "text": "Square is a special case inside both rectangle and rhombus families.",
+          "dependencies": [
+            "qq8quad009a-h1"
+          ]
+        }
+      ]
+    },
+    {
+      "problemId": "qq8quad010",
+      "title": "Perimeter of a rectangle",
+      "body": "A rectangle has perimeter 42 cm and length 13 cm. Find the breadth.",
+      "oer": "",
+      "license": "",
+      "stepId": "qq8quad010a",
+      "problemType": "TextBox",
+      "stepTitle": "Compute the unknown side",
+      "stepBody": "Enter the breadth in cm.",
+      "answerType": "numeric",
+      "stepAnswer": [
+        "8"
+      ],
+      "skillTags": [
+        "quad.properties",
+        "quad.reasoning"
+      ],
+      "hints": [
+        {
+          "id": "qq8quad010a-h1",
+          "type": "hint",
+          "title": "Start with the perimeter formula",
+          "text": "For rectangles: P = 2(l + b).",
+          "dependencies": []
+        },
+        {
+          "id": "qq8quad010a-h2",
+          "type": "scaffold",
+          "title": "Substitute and solve",
+          "text": "42 = 2(13 + b), so 21 = 13 + b, therefore b = 8.",
+          "problemType": "TextBox",
+          "answerType": "numeric",
+          "hintAnswer": [
+            "8"
+          ],
+          "dependencies": [
+            "qq8quad010a-h1"
+          ]
+        }
+      ]
     }
   ]
 }

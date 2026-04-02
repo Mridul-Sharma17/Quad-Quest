@@ -1,37 +1,92 @@
 {
+  "qq8quad001a": {
+    "targetSkill": "quad.classify",
+    "targetStage": "overview",
+    "targetSection": "classify-properties-grid",
+    "preRemedialHint": "Check properties in order: opposite sides parallel, then angle type.",
+    "quickCheck": "List two properties first, then name the shape.",
+    "interventionMessage": "You are repeatedly mixing up core property-based classification. Revisit the property checklist section before the next question.",
+    "behaviorInterventionMessage": "You are taking longer on classification cues. Revisit the property checklist and decision sequence before continuing."
+  },
+  "qq8quad002a": {
+    "targetSkill": "quad.classify",
+    "targetStage": "overview",
+    "targetSection": "classify-hierarchy-subsets",
+    "preRemedialHint": "A square satisfies both rectangle and rhombus rules at the same time.",
+    "quickCheck": "State one square property that also proves it is a rectangle.",
+    "interventionMessage": "You are repeatedly missing hierarchy relationships for square/rectangle/rhombus. Revisit the hierarchy section before the next question.",
+    "behaviorInterventionMessage": "You are spending more time on hierarchy classification. Revisit the subset map and then retry similar items."
+  },
+  "qq8quad003a": {
+    "targetSkill": "quad.classify",
+    "targetStage": "overview",
+    "targetSection": "classify-borderline-cases",
+    "preRemedialHint": "All sides equal does not force right angles, so it can be rhombus instead of square.",
+    "quickCheck": "Write one property that distinguishes rhombus from square.",
+    "interventionMessage": "You are repeatedly confusing closely related classes. Revisit the borderline-cases section before the next question.",
+    "behaviorInterventionMessage": "You are taking longer when classifying look-alike quadrilaterals. Revisit the borderline-case comparisons."
+  },
+  "qq8quad004a": {
+    "targetSkill": "quad.classify",
+    "targetStage": "overview",
+    "targetSection": "classify-decision-sequence",
+    "preRemedialHint": "Start by counting parallel side pairs; one pair points to trapezium.",
+    "quickCheck": "What is the minimum parallel-side condition for trapezium?",
+    "interventionMessage": "You are repeatedly missing the decision sequence for classifying by parallel-side count. Revisit that section before the next question.",
+    "behaviorInterventionMessage": "You are spending more time on parallel-side checks. Revisit the decision sequence and retry."
+  },
+  "qq8quad005a": {
+    "targetSkill": "quad.classify",
+    "targetStage": "overview",
+    "targetSection": "classify-decision-sequence",
+    "preRemedialHint": "A kite is identified by two pairs of adjacent equal sides.",
+    "quickCheck": "Say the key side-length rule of a kite in one sentence.",
+    "interventionMessage": "You are repeatedly missing adjacent-side-based classification. Revisit the decision sequence section before the next question.",
+    "behaviorInterventionMessage": "You are taking longer on side-pattern checks. Revisit the classification sequence before continuing."
+  },
   "qq8quad006a": {
     "targetSkill": "quad.properties",
-    "targetStage": "practice",
+    "targetStage": "lab",
+    "targetSection": "properties-angle-sum-360",
     "preRemedialHint": "Use the universal angle-sum rule first: A + B + C + D = 360 degrees.",
     "quickCheck": "Write A + B + C + D = 360 and solve one unknown at a time.",
-    "interventionMessage": "You are repeatedly missing angle-sum/property relations. Revisit Core Properties and Relations (especially the 360 degree rule) before the next question."
+    "interventionMessage": "You are repeatedly missing angle-sum/property relations. Revisit the 360 degree angle-sum section before the next question.",
+    "behaviorInterventionMessage": "You are spending more time on angle-sum setup. Revisit the angle-sum visual section and then continue."
   },
   "qq8quad007a": {
     "targetSkill": "quad.properties",
-    "targetStage": "practice",
+    "targetStage": "lab",
+    "targetSection": "properties-parallelogram-angles",
     "preRemedialHint": "In a parallelogram, opposite angles are equal. Start from that property before calculating.",
     "quickCheck": "State the property first: opposite angles in a parallelogram are equal.",
-    "interventionMessage": "You are repeatedly missing opposite-angle properties in parallelograms. Revisit Core Properties and Relations before the next question."
+    "interventionMessage": "You are repeatedly missing opposite-angle properties in parallelograms. Revisit that section before the next question.",
+    "behaviorInterventionMessage": "You are taking longer on opposite-angle reasoning. Revisit the parallelogram-angle section in the visual lab."
   },
   "qq8quad008a": {
     "targetSkill": "quad.properties",
-    "targetStage": "practice",
+    "targetStage": "lab",
+    "targetSection": "properties-parallelogram-angles",
     "preRemedialHint": "Adjacent angles in a parallelogram are supplementary, so they add up to 180 degrees.",
     "quickCheck": "Set up the equation: given angle + adjacent angle = 180.",
-    "interventionMessage": "You are repeatedly missing adjacent-angle supplement rules. Revisit Core Properties and Relations before the next question."
+    "interventionMessage": "You are repeatedly missing adjacent-angle supplement rules. Revisit the parallelogram-angle section before the next question.",
+    "behaviorInterventionMessage": "You are spending more time on adjacent-angle setup. Revisit the same section with one worked example."
   },
   "qq8quad009a": {
     "targetSkill": "quad.classify",
     "targetStage": "overview",
+    "targetSection": "classify-hierarchy-subsets",
     "preRemedialHint": "Use subset logic: a square satisfies both rectangle and rhombus properties.",
     "quickCheck": "Ask which statement is always true for every member of that class.",
-    "interventionMessage": "You are repeatedly missing quadrilateral class relationships. Revisit the concept map for classification before the next question."
+    "interventionMessage": "You are repeatedly missing quadrilateral class relationships. Revisit the hierarchy map section before the next question.",
+    "behaviorInterventionMessage": "You are taking longer on hierarchy reasoning. Revisit the subset section and then continue."
   },
   "qq8quad010a": {
     "targetSkill": "quad.properties",
     "targetStage": "practice",
+    "targetSection": "properties-perimeter-setup",
     "preRemedialHint": "For rectangles, perimeter formula is P = 2(l + b). Rearrange before solving.",
     "quickCheck": "Substitute known values into P = 2(l + b), then isolate b.",
-    "interventionMessage": "You are repeatedly missing rectangle perimeter-property setup. Revisit Core Properties and Relations before the next question."
+    "interventionMessage": "You are repeatedly missing rectangle perimeter-property setup. Revisit perimeter setup section before the next question.",
+    "behaviorInterventionMessage": "You are spending more time on formula rearrangement. Revisit the perimeter setup section and solved example."
   }
 }

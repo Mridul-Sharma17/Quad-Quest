@@ -1,4 +1,22 @@
 {
+  "qq8quad001a": {
+    "qq8quad001a-h1": "First check if opposite sides are parallel, then test if all interior angles are right angles.",
+    "qq8quad001a-h2": "If both conditions are true, classify it as rectangle."
+  },
+  "qq8quad002a": {
+    "qq8quad002a-h1": "A square has all sides equal.",
+    "qq8quad002a-h2": "A square also has all angles as right angles, so it is a rectangle too."
+  },
+  "qq8quad003a": {
+    "qq8quad003a-h1": "Rhombus means all sides equal.",
+    "qq8quad003a-h2": "If angles are not all 90 degrees, do not call it square."
+  },
+  "qq8quad004a": {
+    "qq8quad004a-h1": "Count opposite parallel side pairs. Exactly one pair points to trapezium."
+  },
+  "qq8quad005a": {
+    "qq8quad005a-h1": "A kite is recognized by two pairs of adjacent equal sides."
+  },
   "qq8quad006a": {
     "qq8quad006a-h1": "Think structurally: a quadrilateral can be split into two triangles. Use that idea to derive the total interior-angle sum."
   },
@@ -8,6 +26,9 @@
   "qq8quad008a": {
     "qq8quad008a-h1": "Use the adjacent-angle relation for parallelograms: adjacent interior angles add to 180 degrees.",
     "qq8quad008a-h2": "Set up a one-line equation with the given angle and the adjacent angle adding to 180, then solve for the unknown."
+  },
+  "qq8quad009a": {
+    "qq8quad009a-h1": "Use class hierarchy: every square satisfies rectangle and rhombus definitions."
   },
   "qq8quad010a": {
     "qq8quad010a-h1": "Write the rectangle perimeter formula P = 2(l + b), then substitute the known values.",

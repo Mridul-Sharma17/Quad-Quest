@@ -35,5 +35,9 @@ oatutor-firebase-adminsdk.json
 **/.Rhistory
 pnpm-lock.yaml
 
-/generated
+.firebase/hosting.*.cache
+
+# /generated/*
+# !/generated/processed-content-pool/
+# !/generated/processed-content-pool/oatutor.json
 .vercel

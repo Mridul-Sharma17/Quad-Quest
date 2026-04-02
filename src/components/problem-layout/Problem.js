@@ -466,6 +466,24 @@ class Problem extends React.Component {
         return String(firstHintWithText?.text || "").trim();
     };
 
+    getTheorySection = (theoryCard, sectionId) => {
+        const normalizedSectionId = String(sectionId || "").trim();
+        if (
+            !normalizedSectionId ||
+            !theoryCard ||
+            !Array.isArray(theoryCard.sections)
+        ) {
+            return null;
+        }
+
+        return (
+            theoryCard.sections.find(
+                (section) =>
+                    String(section?.id || "").trim() === normalizedSectionId
+            ) || null
+        );
+    };
+
     buildPreRemedialHint = (cardIndex, kcArray, interventionConfig = null) => {
         const adaptiveViewData = this.getAdaptiveViewData();
         const fallbackSkill = this.getProblemSkills(this.props.problem)[0] || "";
@@ -475,6 +493,9 @@ class Problem extends React.Component {
             adaptiveViewData?.targetSkill ||
             fallbackSkill;
         const theoryCard = targetSkill ? theoryCards[targetSkill] || null : null;
+        const targetSection =
+            String(interventionConfig?.targetSection || "").trim() || null;
+        const targetSectionMeta = this.getTheorySection(theoryCard, targetSection);
         const step = this.props.problem?.steps?.[cardIndex];
         const stepHint = this.getStepHintText(step);
 
@@ -482,9 +503,12 @@ class Problem extends React.Component {
             cardIndex,
             targetSkill,
             targetStage: interventionConfig?.targetStage || null,
+            targetSection,
+            targetSectionLabel: targetSectionMeta?.label || "",
             title: theoryCard?.title || "Hint before remedial support",
             hintText:
                 interventionConfig?.preRemedialHint ||
+                targetSectionMeta?.focus ||
                 stepHint ||
                 theoryCard?.quickCheck ||
                 theoryCard?.keyPoints?.[0] ||
@@ -510,18 +534,38 @@ class Problem extends React.Component {
             adaptiveViewData?.targetSkill ||
             fallbackSkill;
         const theoryCard = targetSkill ? theoryCards[targetSkill] || null : null;
+        const targetSection =
+            String(interventionConfig?.targetSection || "").trim() || null;
+        const targetSectionMeta = this.getTheorySection(theoryCard, targetSection);
+        const baseSuggestedSections =
+            Array.isArray(theoryCard?.revisitSections) &&
+            theoryCard.revisitSections.length > 0
+                ? theoryCard.revisitSections.slice(0, 3)
+                : [];
+        const suggestedSections = [];
+        if (targetSectionMeta?.label) {
+            suggestedSections.push(targetSectionMeta.label);
+        }
+        for (const sectionLabel of baseSuggestedSections) {
+            if (
+                sectionLabel &&
+                !suggestedSections.includes(sectionLabel)
+            ) {
+                suggestedSections.push(sectionLabel);
+            }
+        }
 
         return {
             cardIndex,
             targetSkill,
             targetStage: interventionConfig?.targetStage || null,
+            targetSection,
+            targetSectionLabel: targetSectionMeta?.label || "",
             title: theoryCard?.title || "Targeted skill support",
-            suggestedSections:
-                Array.isArray(theoryCard?.revisitSections) &&
-                theoryCard.revisitSections.length > 0
-                    ? theoryCard.revisitSections.slice(0, 2)
-                    : [],
-            quickActions: Array.isArray(theoryCard?.recoveryPlan)
+            suggestedSections,
+            quickActions: Array.isArray(targetSectionMeta?.quickActions)
+                ? targetSectionMeta.quickActions.slice(0, 2)
+                : Array.isArray(theoryCard?.recoveryPlan)
                 ? theoryCard.recoveryPlan.slice(0, 2)
                 : Array.isArray(theoryCard?.keyPoints)
                 ? theoryCard.keyPoints.slice(0, 2)
@@ -531,6 +575,7 @@ class Problem extends React.Component {
                   ],
             quickCheck:
                 interventionConfig?.quickCheck ||
+                targetSectionMeta?.microPractice ||
                 theoryCard?.quickCheck ||
                 "Review the theory points and retry this step.",
         };
@@ -805,6 +850,11 @@ class Problem extends React.Component {
                                     <div style={{ fontWeight: 700, marginBottom: 6 }}>
                                         Focus skill: {remediationZone.targetSkill || "quadrilateral reasoning"}
                                     </div>
+                                    {remediationZone.targetSectionLabel ? (
+                                        <div style={{ marginBottom: 6 }}>
+                                            Target section: {remediationZone.targetSectionLabel}
+                                        </div>
+                                    ) : null}
                                     <div style={{ marginBottom: 6 }}>
                                         {remediationZone.title}
                                     </div>
@@ -841,7 +891,8 @@ class Problem extends React.Component {
                                             ) {
                                                 this.props.onRequestTheoryRevisit(
                                                     remediationZone.targetSkill,
-                                                    remediationZone.targetStage
+                                                    remediationZone.targetStage,
+                                                    remediationZone.targetSection
                                                 );
                                             }
                                         }}

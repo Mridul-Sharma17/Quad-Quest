@@ -82,11 +82,11 @@ class Platform extends React.Component {
             seed: seed,
             adaptiveTrace: null,
             revisitSkill: null,
+            revisitSection: null,
             interventionMessage: "",
             pendingTheoryIntervention: null,
             skillDifficultyMap: {},
         };
-
         this.selectLesson = this.selectLesson.bind(this);
         this.restartLesson = this.restartLesson.bind(this);
         this.startAssessmentStage = this.startAssessmentStage.bind(this);
@@ -472,6 +472,7 @@ class Platform extends React.Component {
                 status: "theory",
                 adaptiveTrace: initialAdaptiveTrace,
                 revisitSkill: null,
+                revisitSection: null,
                 interventionMessage: "",
                 pendingTheoryIntervention: null,
                 skillDifficultyMap: {},
@@ -545,6 +546,8 @@ class Platform extends React.Component {
             interventionConfig?.targetStage ||
             DEFAULT_TARGET_STAGE_BY_SKILL[resolvedSkill] ||
             null;
+        const resolvedTargetSection =
+            String(interventionConfig?.targetSection || "").trim() || null;
 
         const defaultInterventionMessage =
             "You are making frequent mistakes like this in this subtopic, so it is better to revisit this theory resource before the next question.";
@@ -607,6 +610,7 @@ class Platform extends React.Component {
                             : interventionConfig?.interventionMessage ||
                               defaultInterventionMessage,
                     targetStage: resolvedTargetStage,
+                    targetSection: resolvedTargetSection,
                     stepId: normalizedStepId || null,
                     triggerType: preferBehaviorMessage
                         ? "behavior"
@@ -623,7 +627,7 @@ class Platform extends React.Component {
         });
     };
 
-    requestTheoryRevisit = (skillId, targetStage = "") => {
+    requestTheoryRevisit = (skillId, targetStage = "", targetSection = "") => {
         if (!this.lesson) {
             return;
         }
@@ -637,6 +641,7 @@ class Platform extends React.Component {
 
         const normalizedSkill = String(skillId || "").trim();
         const normalizedStage = String(targetStage || "").trim();
+        const normalizedSection = String(targetSection || "").trim();
         const targetStageLabel =
             THEORY_STAGE_LABELS[normalizedStage] || "the recommended stage";
         let nextTrace = adaptiveTrace;
@@ -645,9 +650,12 @@ class Platform extends React.Component {
                 ...nextTrace,
                 targetSkill: normalizedSkill,
                 targetStage: normalizedStage || null,
+                targetSection: normalizedSection || null,
                 rationale: `Based on your response, revisit ${normalizedSkill} before continuing.`,
                 recommendedAction: normalizedStage
-                    ? `Review ${normalizedSkill} in ${targetStageLabel}, then continue with another adaptive question.`
+                    ? normalizedSection
+                        ? `Review ${normalizedSkill} in ${targetStageLabel} (${normalizedSection}), then continue with another adaptive question.`
+                        : `Review ${normalizedSkill} in ${targetStageLabel}, then continue with another adaptive question.`
                     : `Review ${normalizedSkill} and then continue with another adaptive question.`,
             };
         }
@@ -655,6 +663,7 @@ class Platform extends React.Component {
         this.setState({
             status: "theory",
             revisitSkill: normalizedSkill || null,
+            revisitSection: normalizedSection || null,
             adaptiveTrace: nextTrace,
             interventionMessage:
                 "You are making frequent mistakes like this in this subtopic, so it is better to revisit this theory resource before the next question.",
@@ -818,6 +827,7 @@ class Platform extends React.Component {
                 status: "learning",
                 adaptiveTrace,
                 revisitSkill: null,
+                revisitSection: null,
                 interventionMessage: "",
             });
             // console.log("Next problem: ", chosenProblem.id);
@@ -864,6 +874,8 @@ class Platform extends React.Component {
             const skill = this.state.pendingTheoryIntervention.skill;
             const targetStage =
                 this.state.pendingTheoryIntervention.targetStage || null;
+            const targetSection =
+                this.state.pendingTheoryIntervention.targetSection || null;
             const targetStageLabel =
                 THEORY_STAGE_LABELS[targetStage] || "the recommended stage";
             const nextTrace = adaptiveTrace
@@ -871,9 +883,12 @@ class Platform extends React.Component {
                       ...adaptiveTrace,
                       targetSkill: skill,
                       targetStage,
+                      targetSection,
                       rationale: `You are repeatedly struggling with ${skill}. Review theory before the next question.`,
                       recommendedAction: targetStage
-                          ? `Complete ${targetStageLabel} for ${skill}, then continue.`
+                          ? targetSection
+                              ? `Complete ${targetStageLabel} for ${skill} (section: ${targetSection}), then continue.`
+                              : `Complete ${targetStageLabel} for ${skill}, then continue.`
                           : `Complete the visual lab and worked examples for ${skill}, then continue.`,
                   }
                 : null;
@@ -882,6 +897,7 @@ class Platform extends React.Component {
                 status: "theory",
                 currProblem: null,
                 revisitSkill: skill,
+                revisitSection: targetSection,
                 adaptiveTrace: nextTrace,
                 interventionMessage:
                     this.state.pendingTheoryIntervention.message,
@@ -933,6 +949,7 @@ class Platform extends React.Component {
             currProblem: null,
             adaptiveTrace,
             revisitSkill: null,
+            revisitSection: null,
             interventionMessage: "",
             pendingTheoryIntervention: null,
             skillDifficultyMap: {},
@@ -1189,6 +1206,7 @@ class Platform extends React.Component {
                         lesson={this.lesson}
                         adaptiveTrace={this.state.adaptiveTrace}
                         revisitSkill={this.state.revisitSkill}
+                        revisitSection={this.state.revisitSection}
                         interventionMessage={this.state.interventionMessage}
                         onBeginAssessment={this.startAssessmentStage}
                     />
