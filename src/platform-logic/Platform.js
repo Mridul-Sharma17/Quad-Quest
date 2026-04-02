@@ -212,13 +212,73 @@ class Platform extends React.Component {
         }
     }
 
+    getLessonSearchToken = (lesson = this.lesson) => {
+        if (!lesson) {
+            return "";
+        }
+
+        const lessonName = String(lesson.name || "")
+            .replace(/^Lesson\s*/i, "")
+            .trim();
+        const topics = String(lesson.topics || "").trim();
+        return [lessonName, topics].filter(Boolean).join(" ").trim();
+    };
+
+    deriveFallbackLessonFromProblemPool = () => {
+        const allProblems = Array.isArray(this.problemIndex?.problems)
+            ? this.problemIndex.problems
+            : [];
+        if (allProblems.length === 0) {
+            return null;
+        }
+
+        const preferredCourseName = "Class 8 Quadrilaterals";
+        const preferredProblem =
+            allProblems.find(
+                (problem) =>
+                    String(problem?.courseName || "").trim() ===
+                    preferredCourseName
+            ) || allProblems[0];
+
+        const rawLesson = String(preferredProblem?.lesson || "").trim();
+        let derivedName = "Lesson 1";
+        let derivedTopics = rawLesson || "Quadrilateral Basics";
+
+        const lessonMatch = rawLesson.match(/^Lesson\s+([^\s]+)\s*(.*)$/i);
+        if (lessonMatch) {
+            derivedName = `Lesson ${lessonMatch[1]}`;
+            derivedTopics = lessonMatch[2].trim() || "Quadrilateral Basics";
+        }
+
+        return {
+            id: "class8-quad-lesson-1",
+            name: derivedName,
+            topics: derivedTopics,
+            allowRecycle: false,
+            enableCompletionMode: true,
+            learningObjectives: {},
+            courseName: String(
+                preferredProblem?.courseName || preferredCourseName
+            ),
+            courseOER: "",
+            courseLicense: "",
+        };
+    };
+
     getProgressBarData() {
         if (!this.lesson) return { completed: 0, total: 0, percent: 0 };
 
-        const lessonName = String(this.lesson.name.replace("Lesson ", "") + " " + this.lesson.topics);
-        const problems = this.problemIndex.problems.filter(
-            ({ lesson }) => String(lesson).includes(lessonName)
-        );
+        const lessonToken = this.getLessonSearchToken(this.lesson);
+        const lessonCourseName = String(this.lesson.courseName || "").trim();
+        const problems = this.problemIndex.problems.filter(({ lesson, courseName }) => {
+            const lessonMatches = lessonToken
+                ? String(lesson || "").includes(lessonToken)
+                : false;
+            const courseMatches = lessonCourseName
+                ? String(courseName || "").trim() === lessonCourseName
+                : true;
+            return lessonMatches && courseMatches;
+        });
         const completed = this.completedProbs.size;
         const total = problems.length;
         const percent = total > 0 ? Math.round((completed / total) * 100) : 0;
@@ -230,12 +290,17 @@ class Platform extends React.Component {
             return [];
         }
 
-        const lessonName = String(
-            this.lesson.name.replace("Lesson ", "") + " " + this.lesson.topics
-        );
-        const problems = this.problemIndex.problems.filter(({ lesson }) =>
-            String(lesson).includes(lessonName)
-        );
+        const lessonToken = this.getLessonSearchToken(this.lesson);
+        const lessonCourseName = String(this.lesson.courseName || "").trim();
+        const problems = this.problemIndex.problems.filter(({ lesson, courseName }) => {
+            const lessonMatches = lessonToken
+                ? String(lesson || "").includes(lessonToken)
+                : false;
+            const courseMatches = lessonCourseName
+                ? String(courseName || "").trim() === lessonCourseName
+                : true;
+            return lessonMatches && courseMatches;
+        });
 
         const types = new Set();
         for (const problem of problems) {
@@ -255,6 +320,16 @@ class Platform extends React.Component {
     
     async selectLesson(lesson, updateServer=true) {
         const context = this.context;
+        let resolvedLesson = lesson;
+        if (!resolvedLesson) {
+            resolvedLesson = this.deriveFallbackLessonFromProblemPool();
+            if (!resolvedLesson) {
+                toast.error("Unable to load lesson content. Please reload the page.");
+                this.setState({ status: "exhausted", adaptiveTrace: null });
+                return;
+            }
+            console.debug("Resolved missing lesson via fallback", resolvedLesson);
+        }
         console.debug("lesson: ", context)
         console.debug("update server: ", updateServer)
         console.debug("context: ", context)
@@ -274,7 +349,7 @@ class Platform extends React.Component {
                     },
                     body: JSON.stringify({
                         token: context?.jwt || this.context?.jwt || "",
-                        lesson,
+                        lesson: resolvedLesson,
                     }),
                 })
             );
@@ -343,7 +418,7 @@ class Platform extends React.Component {
                     }
                 } else {
                     toast.success(
-                        `Successfully linked assignment "${this.user.resource_link_title}" to lesson ${lesson.id} "${lesson.topics}"`,
+                        `Successfully linked assignment "${this.user.resource_link_title}" to lesson ${resolvedLesson.id} "${resolvedLesson.topics}"`,
                         {
                             toastId: ToastID.set_lesson_success.toString(),
                         }
@@ -357,7 +432,7 @@ class Platform extends React.Component {
             }
         }
 
-        this.lesson = lesson;
+        this.lesson = resolvedLesson;
 
         const loadLessonProgress = async () => {
             const { getByKey } = this.context.browserStorage;
@@ -384,7 +459,7 @@ class Platform extends React.Component {
             this.completedProbs = new Set();
         }
 
-        const objectives = Object.keys(this.lesson.learningObjectives || {});
+        const objectives = Object.keys(this.lesson?.learningObjectives || {});
         const initialAdaptiveTrace = this.buildAdaptiveTrace(
             this.context ? this.context : context,
             null,
@@ -634,6 +709,10 @@ class Platform extends React.Component {
         const problems = this.problemIndex.problems.filter(
             ({ courseName }) => !courseName.toString().startsWith("!!")
         );
+        const objectives = Object.keys(this.lesson?.learningObjectives || {});
+        const hasLessonObjectives = objectives.length > 0;
+        const lessonToken = this.getLessonSearchToken(this.lesson);
+        const lessonCourseName = String(this.lesson?.courseName || "").trim();
         let chosenProblem;
 
         console.debug(
@@ -642,6 +721,12 @@ class Platform extends React.Component {
         );
 
         for (const problem of problems) {
+            const isLessonMatch =
+                (!!lessonToken &&
+                    String(problem.lesson || "").includes(lessonToken)) &&
+                (!lessonCourseName ||
+                    String(problem.courseName || "").trim() ===
+                        lessonCourseName);
             // Calculate the mastery for this problem
             let probMastery = 1;
             let isRelevant = false;
@@ -654,7 +739,7 @@ class Platform extends React.Component {
                         console.log("BKT Parameter " + kc + " does not exist.");
                         continue;
                     }
-                    if (kc in this.lesson.learningObjectives) {
+                    if (hasLessonObjectives && kc in this.lesson.learningObjectives) {
                         isRelevant = true;
                     }
                     // Multiply all the mastery priors
@@ -666,6 +751,10 @@ class Platform extends React.Component {
             }
             if (isRelevant) {
                 problem.probMastery = probMastery;
+            } else if (!hasLessonObjectives && isLessonMatch) {
+                // If no learning-objective metadata is wired for this lesson,
+                // still allow lesson-matched problems to be served adaptively.
+                problem.probMastery = 0;
             } else {
                 problem.probMastery = null;
             }
@@ -677,21 +766,26 @@ class Platform extends React.Component {
         chosenProblem = context.heuristic(problems, this.completedProbs);
         console.debug("Platform.js: chosen problem", chosenProblem);
 
-        const objectives = Object.keys(this.lesson.learningObjectives);
         console.debug("Platform.js: objectives", objectives);
-        let score = objectives.reduce((x, y) => {
-            return x + context.bktParams[y].probMastery;
-        }, 0);
-        score /= objectives.length;
+        const objectiveMasteries = objectives
+            .map((skill) => context.bktParams?.[skill]?.probMastery)
+            .filter((mastery) => typeof mastery === "number");
+        const score =
+            objectiveMasteries.length > 0
+                ? objectiveMasteries.reduce((sum, mastery) => sum + mastery, 0) /
+                  objectiveMasteries.length
+                : 0;
         this.displayMastery(score);
         //console.log(Object.keys(context.bktParams).map((skill) => (context.bktParams[skill].probMastery <= this.lesson.learningObjectives[skill])));
 
         // There exists a skill that has not yet been mastered (a True)
         // Note (number <= null) returns false
         if (
-            !Object.keys(context.bktParams).some(
+            objectiveMasteries.length > 0 &&
+            !objectives.some(
                 (skill) =>
-                    context.bktParams[skill].probMastery <= MASTERY_THRESHOLD
+                    (context.bktParams?.[skill]?.probMastery ?? 0) <=
+                    MASTERY_THRESHOLD
             )
         ) {
             this.setState({ status: "graduated", adaptiveTrace: null });

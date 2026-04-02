@@ -2,8 +2,8 @@
   "name": "open-its",
   "version": "0.1.0",
   "private": true,
-  "engines": { 
-    "node": ">=12" 
+  "engines": {
+    "node": ">=12"
   },
   "dependencies": {
     "@common/global-config": "file:./common",
@@ -46,6 +46,12 @@
     "prebuild-localhost": "node src/tools/preprocessProblemPool.js",
     "predeploy": "npm run build",
     "deploy": "gh-pages -d build",
+    "vercel:login": "vercel login",
+    "firebase:login": "firebase login",
+    "firebase:use": "firebase use --add",
+    "deploy:vercel": "vercel --prod --yes",
+    "deploy:firebase": "firebase deploy --only hosting",
+    "deploy:all": "npm run build && npm run deploy:vercel && npm run deploy:firebase",
     "test": "react-app-rewired test",
     "pretest": "node src/tools/preprocessProblemPool.js",
     "eject": "react-scripts eject",
@@ -66,12 +72,13 @@
   "devDependencies": {
     "@types/react-resizable": "~1.7.4",
     "cross-env": "^7.0.3",
+    "firebase-tools": "^15.12.0",
     "gh-pages": "~2.2.0",
     "mathlive": "^0.98.3",
     "react-app-rewire-alias": "~1.1.7",
     "react-app-rewired": "~2.2.1",
     "react-window": "^1.8.11",
-    "typescript": "4.9.5"
-  },
-  "homepage": "place-holder"
+    "typescript": "4.9.5",
+    "vercel": "^50.38.2"
+  }
 }
