@@ -5,6 +5,34 @@ import { HELP_DOCUMENT, SITE_NAME } from "../../config/config";
 
 const VPAT_LINK = `${process.env.PUBLIC_URL}/static/documents/OATutor_Sec508_WCAG.pdf`
 
+const SOURCE_LINKS = [
+    {
+        label: "Siyavula Grade 8 Mathematics",
+        url: "https://www.siyavula.com/read/maths/grade-8",
+        note: "Primary class-8 quadrilateral content reference"
+    },
+    {
+        label: "OpenStax Math Catalog",
+        url: "https://openstax.org/subjects/math",
+        note: "Secondary concept reference"
+    },
+    {
+        label: "OpenStax License",
+        url: "https://openstax.org/license",
+        note: "Book-level licensing details"
+    },
+    {
+        label: "Khan Academy NCERT Math",
+        url: "https://www.khanacademy.org/math/in-math-ncert",
+        note: "Sequence and pedagogy reference"
+    },
+    {
+        label: "NCERT Textbooks",
+        url: "https://ncert.nic.in/textbook.php",
+        note: "Official curriculum alignment"
+    }
+];
+
 const About = () => {
     const classes = useStyles()
     const currentYear = new Date().getFullYear();
@@ -48,6 +76,19 @@ const About = () => {
             url:<span> </span>
             <a href={VPAT_LINK} target={"_blank"} rel={"noreferrer"}>{VPAT_LINK.match(/\/[^/]*$/)[0].substr(1)}</a>
         </p>
+
+        <h3>Content Sources & Licenses</h3>
+        <p>
+            The links below list the source references and licensing pages used to curate our quadrilateral learning content.
+        </p>
+        <ul>
+            {SOURCE_LINKS.map(({ label, url, note }) => (
+                <li key={url}>
+                    <a href={url} target={"_blank"} rel={"noreferrer"}>{label}</a>
+                    <span>: {note}</span>
+                </li>
+            ))}
+        </ul>
 
         <Spacer height={24 * 1}/>
 

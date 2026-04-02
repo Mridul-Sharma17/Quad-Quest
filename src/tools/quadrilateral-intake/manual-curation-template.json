@@ -1,0 +1,301 @@
+{
+  "courseName": "Class 8 Quadrilaterals",
+  "lessonId": "class8-quadrilaterals-core",
+  "lessonName": "Lesson 1",
+  "lessonTopics": "Properties, classification, angle-side reasoning, construction",
+  "allowRecycle": false,
+  "learningObjectives": {
+    "quad.classify": 0.9,
+    "quad.properties": 0.9,
+    "quad.reasoning": 0.9
+  },
+  "defaultProblemMeta": {
+    "oer": "",
+    "license": "",
+    "lesson": "Lesson 1 Quadrilateral Basics"
+  },
+  "items": [
+    {
+      "problemId": "qq8quad001",
+      "title": "Identify the quadrilateral by properties",
+      "body": "A quadrilateral has both pairs of opposite sides parallel and all angles right angles. Identify the shape.",
+      "oer": "",
+      "license": "",
+      "stepId": "qq8quad001a",
+      "problemType": "TextBox",
+      "stepTitle": "Classify the quadrilateral",
+      "stepBody": "Type the name of the quadrilateral.",
+      "answerType": "string",
+      "stepAnswer": [
+        "rectangle"
+      ],
+      "skillTags": [
+        "quad.classify",
+        "quad.properties"
+      ],
+      "hints": [
+        {
+          "id": "qq8quad001a-h1",
+          "type": "hint",
+          "title": "Think about opposite sides",
+          "text": "Both pairs of opposite sides are parallel.",
+          "dependencies": []
+        },
+        {
+          "id": "qq8quad001a-h2",
+          "type": "scaffold",
+          "title": "Think about angles",
+          "text": "All interior angles are right angles.",
+          "problemType": "TextBox",
+          "answerType": "string",
+          "hintAnswer": [
+            "rectangle"
+          ],
+          "dependencies": [
+            "qq8quad001a-h1"
+          ]
+        }
+      ]
+    },
+    {
+      "problemId": "qq8quad002",
+      "title": "Identify a square",
+      "body": "A quadrilateral has all sides equal and all angles equal to 90 degrees. Identify the shape.",
+      "oer": "",
+      "license": "",
+      "stepId": "qq8quad002a",
+      "problemType": "TextBox",
+      "stepTitle": "Name the shape",
+      "stepBody": "Type the name of the quadrilateral.",
+      "answerType": "string",
+      "stepAnswer": [
+        "square"
+      ],
+      "skillTags": [
+        "quad.classify",
+        "quad.properties"
+      ],
+      "hints": [
+        {
+          "id": "qq8quad002a-h1",
+          "type": "hint",
+          "title": "Check all sides",
+          "text": "All four sides are equal.",
+          "dependencies": []
+        },
+        {
+          "id": "qq8quad002a-h2",
+          "type": "hint",
+          "title": "Check all angles",
+          "text": "Each interior angle is a right angle.",
+          "dependencies": [
+            "qq8quad002a-h1"
+          ]
+        }
+      ]
+    },
+    {
+      "problemId": "qq8quad003",
+      "title": "Identify a rhombus",
+      "body": "A quadrilateral has all sides equal, and opposite sides are parallel, but angles are not all 90 degrees. Identify the shape.",
+      "oer": "",
+      "license": "",
+      "stepId": "qq8quad003a",
+      "problemType": "TextBox",
+      "stepTitle": "Name the shape",
+      "stepBody": "Type the name of the quadrilateral.",
+      "answerType": "string",
+      "stepAnswer": [
+        "rhombus"
+      ],
+      "skillTags": [
+        "quad.classify",
+        "quad.properties"
+      ],
+      "hints": [
+        {
+          "id": "qq8quad003a-h1",
+          "type": "hint",
+          "title": "Look at side lengths",
+          "text": "All four sides are equal.",
+          "dependencies": []
+        },
+        {
+          "id": "qq8quad003a-h2",
+          "type": "hint",
+          "title": "Distinguish from square",
+          "text": "Not all angles are right angles.",
+          "dependencies": [
+            "qq8quad003a-h1"
+          ]
+        }
+      ]
+    },
+    {
+      "problemId": "qq8quad004",
+      "title": "Identify a trapezium",
+      "body": "A quadrilateral has exactly one pair of opposite sides parallel. Identify the shape.",
+      "oer": "",
+      "license": "",
+      "stepId": "qq8quad004a",
+      "problemType": "MultipleChoice",
+      "stepTitle": "Name the shape",
+      "stepBody": "Choose the correct name of the quadrilateral.",
+      "answerType": "string",
+      "stepAnswer": [
+        "trapezium"
+      ],
+      "choices": [
+        "square",
+        "kite",
+        "trapezium",
+        "rhombus"
+      ],
+      "skillTags": [
+        "quad.classify",
+        "quad.properties"
+      ],
+      "hints": [
+        {
+          "id": "qq8quad004a-h1",
+          "type": "hint",
+          "title": "Count parallel sides",
+          "text": "Only one opposite pair is parallel.",
+          "dependencies": []
+        }
+      ]
+    },
+    {
+      "problemId": "qq8quad005",
+      "title": "Identify a kite",
+      "body": "A quadrilateral has two pairs of adjacent equal sides. Identify the shape.",
+      "oer": "",
+      "license": "",
+      "stepId": "qq8quad005a",
+      "problemType": "MultipleChoice",
+      "stepTitle": "Name the shape",
+      "stepBody": "Choose the correct name of the quadrilateral.",
+      "answerType": "string",
+      "stepAnswer": [
+        "kite"
+      ],
+      "choices": [
+        "rectangle",
+        "trapezium",
+        "kite",
+        "parallelogram"
+      ],
+      "skillTags": [
+        "quad.classify",
+        "quad.properties"
+      ],
+      "hints": [
+        {
+          "id": "qq8quad005a-h1",
+          "type": "hint",
+          "title": "Check adjacent sides",
+          "text": "Two neighboring sides match, and the other two neighboring sides also match.",
+          "dependencies": []
+        }
+      ]
+    },
+    {
+      "problemId": "qq8quad006",
+      "title": "Sum of interior angles",
+      "body": "Find the sum of interior angles of any quadrilateral.",
+      "oer": "",
+      "license": "",
+      "stepId": "qq8quad006a",
+      "problemType": "TextBox",
+      "stepTitle": "Compute the total",
+      "stepBody": "Enter the value in degrees.",
+      "answerType": "numeric",
+      "stepAnswer": [
+        "360"
+      ],
+      "skillTags": [
+        "quad.properties",
+        "quad.reasoning"
+      ],
+      "hints": [
+        {
+          "id": "qq8quad006a-h1",
+          "type": "hint",
+          "title": "Known property",
+          "text": "The four interior angles of every quadrilateral add to a fixed total.",
+          "dependencies": []
+        }
+      ]
+    },
+    {
+      "problemId": "qq8quad007",
+      "title": "Opposite angles in parallelogram",
+      "body": "In a parallelogram, one angle is 70 degrees. Find the opposite angle.",
+      "oer": "",
+      "license": "",
+      "stepId": "qq8quad007a",
+      "problemType": "TextBox",
+      "stepTitle": "Find the opposite angle",
+      "stepBody": "Enter the angle value in degrees.",
+      "answerType": "numeric",
+      "stepAnswer": [
+        "70"
+      ],
+      "skillTags": [
+        "quad.properties",
+        "quad.reasoning"
+      ],
+      "hints": [
+        {
+          "id": "qq8quad007a-h1",
+          "type": "hint",
+          "title": "Opposite-angle rule",
+          "text": "Opposite angles of a parallelogram are equal.",
+          "dependencies": []
+        }
+      ]
+    },
+    {
+      "problemId": "qq8quad008",
+      "title": "Adjacent angles in parallelogram",
+      "body": "In a parallelogram, one interior angle is 110 degrees. Find an adjacent interior angle.",
+      "oer": "",
+      "license": "",
+      "stepId": "qq8quad008a",
+      "problemType": "TextBox",
+      "stepTitle": "Find the adjacent angle",
+      "stepBody": "Enter the angle value in degrees.",
+      "answerType": "numeric",
+      "stepAnswer": [
+        "70"
+      ],
+      "skillTags": [
+        "quad.properties",
+        "quad.reasoning"
+      ],
+      "hints": [
+        {
+          "id": "qq8quad008a-h1",
+          "type": "hint",
+          "title": "Adjacent-angle rule",
+          "text": "Adjacent angles of a parallelogram are supplementary.",
+          "dependencies": []
+        },
+        {
+          "id": "qq8quad008a-h2",
+          "type": "scaffold",
+          "title": "Set up equation",
+          "text": "If one angle is 110, then adjacent angle = 180 - 110.",
+          "problemType": "TextBox",
+          "answerType": "numeric",
+          "hintAnswer": [
+            "70"
+          ],
+          "dependencies": [
+            "qq8quad008a-h1"
+          ]
+        }
+      ]
+    }
+  ]
+}

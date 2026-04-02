@@ -83,9 +83,15 @@ const _SHORT_SITE_NAME = SITE_NAME.toLowerCase()
     .substr(0, 16);
 
 const USER_ID_STORAGE_KEY = `${_SHORT_SITE_NAME}-user_id`;
+const LEARNER_ID_STORAGE_KEY = `${_SHORT_SITE_NAME}-learner_id`;
 const PROGRESS_STORAGE_KEY = `${_SHORT_SITE_NAME}-progress`;
-export const LESSON_PROGRESS_STORAGE_KEY = (lessonId) =>
-    `${PROGRESS_STORAGE_KEY}-${lessonId}`;
+export const LESSON_PROGRESS_STORAGE_KEY = (lessonId, learnerId = "") => {
+    const learnerKey = String(learnerId || "").trim();
+    if (learnerKey.length > 0) {
+        return `${PROGRESS_STORAGE_KEY}-${learnerKey}-${lessonId}`;
+    }
+    return `${PROGRESS_STORAGE_KEY}-${lessonId}`;
+};
 
 const CANVAS_WARNING_STORAGE_KEY = `${_SHORT_SITE_NAME}-canvas-warning-dismissed`;
 
@@ -159,6 +165,7 @@ export {
     DYNAMIC_HINT_TEMPLATE,
     MASTERY_THRESHOLD,
     USER_ID_STORAGE_KEY,
+    LEARNER_ID_STORAGE_KEY,
     PROGRESS_STORAGE_KEY,
     SITE_NAME,
     HELP_DOCUMENT,

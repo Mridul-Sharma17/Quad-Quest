@@ -1,0 +1,37 @@
+{
+  "qq8quad006a": {
+    "targetSkill": "quad.properties",
+    "targetStage": "practice",
+    "preRemedialHint": "Use the universal angle-sum rule first: A + B + C + D = 360 degrees.",
+    "quickCheck": "Write A + B + C + D = 360 and solve one unknown at a time.",
+    "interventionMessage": "You are repeatedly missing angle-sum/property relations. Revisit Core Properties and Relations (especially the 360 degree rule) before the next question."
+  },
+  "qq8quad007a": {
+    "targetSkill": "quad.properties",
+    "targetStage": "practice",
+    "preRemedialHint": "In a parallelogram, opposite angles are equal. Start from that property before calculating.",
+    "quickCheck": "State the property first: opposite angles in a parallelogram are equal.",
+    "interventionMessage": "You are repeatedly missing opposite-angle properties in parallelograms. Revisit Core Properties and Relations before the next question."
+  },
+  "qq8quad008a": {
+    "targetSkill": "quad.properties",
+    "targetStage": "practice",
+    "preRemedialHint": "Adjacent angles in a parallelogram are supplementary, so they add up to 180 degrees.",
+    "quickCheck": "Set up the equation: given angle + adjacent angle = 180.",
+    "interventionMessage": "You are repeatedly missing adjacent-angle supplement rules. Revisit Core Properties and Relations before the next question."
+  },
+  "qq8quad009a": {
+    "targetSkill": "quad.classify",
+    "targetStage": "overview",
+    "preRemedialHint": "Use subset logic: a square satisfies both rectangle and rhombus properties.",
+    "quickCheck": "Ask which statement is always true for every member of that class.",
+    "interventionMessage": "You are repeatedly missing quadrilateral class relationships. Revisit the concept map for classification before the next question."
+  },
+  "qq8quad010a": {
+    "targetSkill": "quad.properties",
+    "targetStage": "practice",
+    "preRemedialHint": "For rectangles, perimeter formula is P = 2(l + b). Rearrange before solving.",
+    "quickCheck": "Substitute known values into P = 2(l + b), then isolate b.",
+    "interventionMessage": "You are repeatedly missing rectangle perimeter-property setup. Revisit Core Properties and Relations before the next question."
+  }
+}

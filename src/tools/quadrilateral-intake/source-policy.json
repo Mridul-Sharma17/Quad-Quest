@@ -1,0 +1,92 @@
+{
+  "sources": [
+    {
+      "id": "siyavula-grade8",
+      "role": "primary",
+      "startUrls": [
+        "https://www.siyavula.com/read/maths/grade-8",
+        "https://www.siyavula.com/read/za/mathematics/grade-8"
+      ],
+      "targetTopics": [
+        "properties of quadrilaterals",
+        "constructing quadrilaterals",
+        "types of quadrilaterals",
+        "unknown angles and sides of quadrilaterals"
+      ],
+      "reuseGuidance": {
+        "allowed": [
+          "Adapt concept progression into your own wording",
+          "Create original problems based on concepts",
+          "Use attribution links in your license page"
+        ],
+        "avoid": [
+          "Copying branded CC-BY-ND text verbatim"
+        ]
+      }
+    },
+    {
+      "id": "openstax",
+      "role": "secondary",
+      "startUrls": [
+        "https://openstax.org/subjects/math",
+        "https://openstax.org/license"
+      ],
+      "targetTopics": [
+        "geometry prerequisites",
+        "angle relationships",
+        "polygon properties"
+      ],
+      "reuseGuidance": {
+        "allowed": [
+          "Reuse where specific book license allows adaptation",
+          "Map concept explanations into class-8 level"
+        ],
+        "avoid": [
+          "Using content from books with non-matching license without checks"
+        ]
+      }
+    },
+    {
+      "id": "khan-ncert",
+      "role": "reference",
+      "startUrls": [
+        "https://www.khanacademy.org/math/in-math-ncert",
+        "https://www.khanacademy.org/math/cc-fifth-grade-math/imp-geometry/imp-quadrilaterals"
+      ],
+      "targetTopics": [
+        "skill sequencing",
+        "practice progression",
+        "diagnostic-to-remediation flow"
+      ],
+      "reuseGuidance": {
+        "allowed": [
+          "Reference structure and pedagogical flow",
+          "Link out in attribution page"
+        ],
+        "avoid": [
+          "Bulk copying hosted proprietary content"
+        ]
+      }
+    },
+    {
+      "id": "ncert",
+      "role": "syllabus-anchor",
+      "startUrls": [
+        "https://ncert.nic.in/textbook.php"
+      ],
+      "targetTopics": [
+        "chapter scope",
+        "class-8 curriculum mapping"
+      ],
+      "reuseGuidance": {
+        "allowed": [
+          "Use chapter names and sequencing for alignment",
+          "Link to official source"
+        ],
+        "avoid": [
+          "Rehosting textbook text or PDFs"
+        ]
+      }
+    }
+  ]
+}

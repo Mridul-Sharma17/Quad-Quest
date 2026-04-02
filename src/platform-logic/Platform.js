@@ -1,9 +1,11 @@
 import React from "react";
 import { AppBar, Toolbar } from "@material-ui/core";
+import Button from "@material-ui/core/Button";
 import LinearProgress from "@material-ui/core/LinearProgress";
 import Grid from "@material-ui/core/Grid";
 import ProblemWrapper from "@components/problem-layout/ProblemWrapper.js";
 import LessonSelectionWrapper from "@components/problem-layout/LessonSelectionWrapper.js";
+import TheoryLessonStage from "@components/TheoryLessonStage.js";
 import { withRouter } from "react-router-dom";
 
 import {
@@ -26,8 +28,15 @@ import ErrorBoundary from "@components/ErrorBoundary";
 import { CONTENT_SOURCE } from "@common/global-config";
 import withTranslation from '../util/withTranslation';
 import { LocalizationConsumer } from '../util/LocalizationContext';
+import interventionMap from "../content-sources/interventionMap.json";
 
 let problemPool = require(`@generated/processed-content-pool/${CONTENT_SOURCE}.json`);
+
+const THEORY_STAGE_LABELS = {
+    overview: "Stage A: Concept Map",
+    lab: "Stage B: Visual Lab",
+    practice: "Stage C: Worked Reasoning",
+};
 
 let seed = Date.now().toString();
 console.log("Generated seed");
@@ -62,22 +71,30 @@ class Platform extends React.Component {
                 );
             }
         }
-        if (this.props.lessonID == null) {
-            this.state = {
-                currProblem: null,
-                status: "courseSelection",
-                seed: seed,
-            };
-        } else {
-            this.state = {
-                currProblem: null,
-                status: "courseSelection",
-                seed: seed,
-            };
-        }
+        this.state = {
+            currProblem: null,
+            status: "courseSelection",
+            seed: seed,
+            adaptiveTrace: null,
+            revisitSkill: null,
+            interventionMessage: "",
+            pendingTheoryIntervention: null,
+            skillDifficultyMap: {},
+        };
 
         this.selectLesson = this.selectLesson.bind(this);
+        this.restartLesson = this.restartLesson.bind(this);
+        this.startAssessmentStage = this.startAssessmentStage.bind(this);
+        this.requestTheoryRevisit = this.requestTheoryRevisit.bind(this);
+        this.recordSkillOutcome = this.recordSkillOutcome.bind(this);
     }
+
+    getLessonStorageKey = () => {
+        return LESSON_PROGRESS_STORAGE_KEY(
+            this.lesson?.id,
+            this.context?.learnerID || ""
+        );
+    };
 
     componentDidMount() {
         this._isMounted = true;
@@ -202,6 +219,34 @@ class Platform extends React.Component {
         const percent = total > 0 ? Math.round((completed / total) * 100) : 0;
         return { completed, total, percent };
     }
+
+    getLessonQuestionTypes() {
+        if (!this.lesson) {
+            return [];
+        }
+
+        const lessonName = String(
+            this.lesson.name.replace("Lesson ", "") + " " + this.lesson.topics
+        );
+        const problems = this.problemIndex.problems.filter(({ lesson }) =>
+            String(lesson).includes(lessonName)
+        );
+
+        const types = new Set();
+        for (const problem of problems) {
+            for (const step of problem.steps || []) {
+                if (step.problemType === "MultipleChoice") {
+                    types.add("Multiple Choice");
+                } else if (step.answerType === "numeric") {
+                    types.add("Numeric");
+                } else {
+                    types.add("Text Response");
+                }
+            }
+        }
+
+        return Array.from(types);
+    }
     
     async selectLesson(lesson, updateServer=true) {
         const context = this.context;
@@ -299,7 +344,7 @@ class Platform extends React.Component {
                         }
                     );
                     const responseText = await response.text();
-                    let [message, ...addInfo] = responseText.split("|");
+                    let [, ...addInfo] = responseText.split("|");
                     this.props.history.push(
                         `/assignment-already-linked?to=${addInfo.to}`
                     );
@@ -311,9 +356,9 @@ class Platform extends React.Component {
 
         const loadLessonProgress = async () => {
             const { getByKey } = this.context.browserStorage;
-            return await getByKey(
-                LESSON_PROGRESS_STORAGE_KEY(this.lesson.id)
-            ).catch((err) => {});
+            return await getByKey(this.getLessonStorageKey()).catch(
+                (err) => {}
+            );
         };
 
         const [, prevCompletedProbs] = await Promise.all([
@@ -324,18 +369,32 @@ class Platform extends React.Component {
             console.debug("component not mounted, returning early (2)");
             return;
         }
-        if (prevCompletedProbs) {
+        if (Array.isArray(prevCompletedProbs) && prevCompletedProbs.length > 0) {
             console.debug(
                 "student has already made progress w/ problems in this lesson before",
                 prevCompletedProbs
             );
             this.completedProbs = new Set(prevCompletedProbs);
+        } else {
+            this.completedProbs = new Set();
         }
+
+        const objectives = Object.keys(this.lesson.learningObjectives || {});
+        const initialAdaptiveTrace = this.buildAdaptiveTrace(
+            this.context ? this.context : context,
+            null,
+            objectives
+        );
+
         this.setState(
             {
-                currProblem: this._nextProblem(
-                    this.context ? this.context : context
-                ),
+                currProblem: null,
+                status: "theory",
+                adaptiveTrace: initialAdaptiveTrace,
+                revisitSkill: null,
+                interventionMessage: "",
+                pendingTheoryIntervention: null,
+                skillDifficultyMap: {},
             },
             () => {
                 //console.log(this.state.currProblem);
@@ -349,6 +408,167 @@ class Platform extends React.Component {
         this.setState({
             status: "lessonSelection",
         });
+    };
+
+    startAssessmentStage = () => {
+        this._nextProblem(this.context);
+    };
+
+    recordSkillOutcome = (skillIds, isCorrect, stepId = "") => {
+        const normalizedSkillIds = cleanArray(skillIds || []);
+        if (!Array.isArray(normalizedSkillIds) || normalizedSkillIds.length === 0) {
+            return;
+        }
+
+        const interventionConfig =
+            interventionMap[String(stepId || "").trim()] || null;
+        const preferredSkill =
+            interventionConfig?.targetSkill || normalizedSkillIds[0] || null;
+        const prioritySkills = cleanArray([
+            preferredSkill,
+            ...normalizedSkillIds,
+        ]);
+        const defaultInterventionMessage =
+            "You are making frequent mistakes like this in this subtopic, so it is better to revisit this theory resource before the next question.";
+
+        this.setState((prevState) => {
+            const nextSkillDifficultyMap = {
+                ...(prevState.skillDifficultyMap || {}),
+            };
+
+            let candidateIntervention = prevState.pendingTheoryIntervention;
+            const triggeredSkills = {};
+
+            for (const skillId of normalizedSkillIds) {
+                if (!skillId) {
+                    continue;
+                }
+
+                const prev = nextSkillDifficultyMap[skillId] || {
+                    totalAttempts: 0,
+                    totalIncorrect: 0,
+                    recentIncorrect: 0,
+                };
+
+                const next = {
+                    totalAttempts: prev.totalAttempts + 1,
+                    totalIncorrect: prev.totalIncorrect + (isCorrect ? 0 : 1),
+                    recentIncorrect: isCorrect ? 0 : prev.recentIncorrect + 1,
+                };
+
+                nextSkillDifficultyMap[skillId] = next;
+
+                const shouldIntervene =
+                    !isCorrect &&
+                    (next.recentIncorrect >= 2 || next.totalIncorrect >= 3);
+
+                if (shouldIntervene) {
+                    triggeredSkills[skillId] = next;
+                }
+            }
+
+            const selectedSkill = prioritySkills.find(
+                (skillId) => Boolean(triggeredSkills[skillId])
+            );
+
+            if (selectedSkill) {
+                const selectedStats = triggeredSkills[selectedSkill];
+                candidateIntervention = {
+                    skill: selectedSkill,
+                    recentIncorrect: selectedStats.recentIncorrect,
+                    totalIncorrect: selectedStats.totalIncorrect,
+                    message:
+                        interventionConfig?.interventionMessage ||
+                        defaultInterventionMessage,
+                    targetStage: interventionConfig?.targetStage || null,
+                    stepId: stepId || null,
+                };
+            }
+
+            return {
+                skillDifficultyMap: nextSkillDifficultyMap,
+                pendingTheoryIntervention: candidateIntervention,
+            };
+        });
+    };
+
+    requestTheoryRevisit = (skillId, targetStage = "") => {
+        if (!this.lesson) {
+            return;
+        }
+
+        const objectives = Object.keys(this.lesson.learningObjectives || {});
+        const adaptiveTrace = this.buildAdaptiveTrace(
+            this.context,
+            null,
+            objectives
+        );
+
+        const normalizedSkill = String(skillId || "").trim();
+        const normalizedStage = String(targetStage || "").trim();
+        const targetStageLabel =
+            THEORY_STAGE_LABELS[normalizedStage] || "the recommended stage";
+        let nextTrace = adaptiveTrace;
+        if (nextTrace && normalizedSkill) {
+            nextTrace = {
+                ...nextTrace,
+                targetSkill: normalizedSkill,
+                targetStage: normalizedStage || null,
+                rationale: `Based on your response, revisit ${normalizedSkill} before continuing.`,
+                recommendedAction: normalizedStage
+                    ? `Review ${normalizedSkill} in ${targetStageLabel}, then continue with another adaptive question.`
+                    : `Review ${normalizedSkill} and then continue with another adaptive question.`,
+            };
+        }
+
+        this.setState({
+            status: "theory",
+            revisitSkill: normalizedSkill || null,
+            adaptiveTrace: nextTrace,
+            interventionMessage:
+                "You are making frequent mistakes like this in this subtopic, so it is better to revisit this theory resource before the next question.",
+            pendingTheoryIntervention: null,
+        });
+    };
+
+    buildAdaptiveTrace = (context, chosenProblem, objectives) => {
+        const objectiveMastery = objectives.map((skill) => {
+            const mastery = context.bktParams[skill]?.probMastery ?? 0;
+            return {
+                skill,
+                mastery,
+            };
+        });
+
+        objectiveMastery.sort((a, b) => a.mastery - b.mastery);
+        const weakestObjective = objectiveMastery[0] || null;
+
+        if (!weakestObjective) {
+            return null;
+        }
+
+        const targetSkill = weakestObjective.skill;
+        const targetMastery = weakestObjective.mastery;
+        const percent = Math.round(targetMastery * 100);
+        const rationale = chosenProblem
+            ? `We selected this question to strengthen ${targetSkill} (current mastery ${percent}%).`
+            : `Your current focus skill is ${targetSkill} (current mastery ${percent}%).`;
+
+        let recommendedAction = `Practice this item and check hints only if needed for ${targetSkill}.`;
+        if (targetMastery < 0.6) {
+            recommendedAction = `Review the theory card for ${targetSkill} first, then solve the question.`;
+        } else if (targetMastery >= MASTERY_THRESHOLD) {
+            recommendedAction = `You are near mastery for ${targetSkill}; this question checks consistency.`;
+        }
+
+        return {
+            targetSkill,
+            targetMastery,
+            selectedProblemId: chosenProblem?.id || null,
+            objectiveMastery,
+            rationale,
+            recommendedAction,
+        };
     };
 
     _nextProblem = (context) => {
@@ -418,7 +638,7 @@ class Platform extends React.Component {
                     context.bktParams[skill].probMastery <= MASTERY_THRESHOLD
             )
         ) {
-            this.setState({ status: "graduated" });
+            this.setState({ status: "graduated", adaptiveTrace: null });
             console.log("Graduated");
             return null;
         } else if (chosenProblem == null) {
@@ -426,7 +646,7 @@ class Platform extends React.Component {
             // We have finished all the problems
             if (this.lesson && !this.lesson.allowRecycle) {
                 // If we do not allow problem recycle then we have exhausted the pool
-                this.setState({ status: "exhausted" });
+                this.setState({ status: "exhausted", adaptiveTrace: null });
                 return null;
             } else {
                 this.completedProbs = new Set();
@@ -438,7 +658,18 @@ class Platform extends React.Component {
         }
 
         if (chosenProblem) {
-            this.setState({ currProblem: chosenProblem, status: "learning" });
+            const adaptiveTrace = this.buildAdaptiveTrace(
+                context,
+                chosenProblem,
+                objectives
+            );
+            this.setState({
+                currProblem: chosenProblem,
+                status: "learning",
+                adaptiveTrace,
+                revisitSkill: null,
+                interventionMessage: "",
+            });
             // console.log("Next problem: ", chosenProblem.id);
             console.debug("problem information", chosenProblem);
             this.context.firebase.startedProblem(
@@ -457,7 +688,7 @@ class Platform extends React.Component {
         this.completedProbs.add(this.state.currProblem.id);
         const { setByKey } = this.context.browserStorage;
         await setByKey(
-            LESSON_PROGRESS_STORAGE_KEY(this.lesson.id),
+            this.getLessonStorageKey(),
             this.completedProbs
         ).catch((error) => {
             this.context.firebase.submitSiteLog(
@@ -472,6 +703,42 @@ class Platform extends React.Component {
                 this.state.currProblem.id
             );
         });
+
+        if (this.state.pendingTheoryIntervention?.skill) {
+            const objectives = Object.keys(this.lesson.learningObjectives || {});
+            const adaptiveTrace = this.buildAdaptiveTrace(
+                context,
+                null,
+                objectives
+            );
+            const skill = this.state.pendingTheoryIntervention.skill;
+            const targetStage =
+                this.state.pendingTheoryIntervention.targetStage || null;
+            const targetStageLabel =
+                THEORY_STAGE_LABELS[targetStage] || "the recommended stage";
+            const nextTrace = adaptiveTrace
+                ? {
+                      ...adaptiveTrace,
+                      targetSkill: skill,
+                      targetStage,
+                      rationale: `You are repeatedly struggling with ${skill}. Review theory before the next question.`,
+                      recommendedAction: targetStage
+                          ? `Complete ${targetStageLabel} for ${skill}, then continue.`
+                          : `Complete the visual lab and worked examples for ${skill}, then continue.`,
+                  }
+                : null;
+
+            this.setState({
+                status: "theory",
+                currProblem: null,
+                revisitSkill: skill,
+                adaptiveTrace: nextTrace,
+                interventionMessage:
+                    this.state.pendingTheoryIntervention.message,
+                pendingTheoryIntervention: null,
+            });
+            return;
+        }
 
         if (this.lesson.enableCompletionMode) {
             const relevantKc = {};
@@ -493,6 +760,33 @@ class Platform extends React.Component {
         } else {
             this._nextProblem(context);
         }
+    };
+
+    restartLesson = async () => {
+        if (!this.lesson) {
+            return;
+        }
+
+        this.completedProbs = new Set();
+        const { removeByKey } = this.context.browserStorage;
+        await removeByKey(this.getLessonStorageKey()).catch(() => {});
+
+        const objectives = Object.keys(this.lesson.learningObjectives || {});
+        const adaptiveTrace = this.buildAdaptiveTrace(
+            this.context,
+            null,
+            objectives
+        );
+
+        this.setState({
+            status: "theory",
+            currProblem: null,
+            adaptiveTrace,
+            revisitSkill: null,
+            interventionMessage: "",
+            pendingTheoryIntervention: null,
+            skillDifficultyMap: {},
+        });
     };
 
     updateCanvas = async (mastery, components) => {
@@ -629,9 +923,16 @@ class Platform extends React.Component {
 
     render() {
         const { translate } = this.props;
-        this.studentNameDisplay = this.context.studentName
-        ? decodeURIComponent(this.context.studentName) + " | "
-        : translate('platform.LoggedIn') + " | ";
+        const learnerIDText = String(this.context.learnerID || "").trim();
+        const studentNameText = String(this.context.studentName || "").trim();
+        const shouldShowStudentName =
+            studentNameText.length > 0 && studentNameText !== learnerIDText;
+        this.studentNameDisplay = shouldShowStudentName
+            ? decodeURIComponent(studentNameText) + " | "
+            : "";
+        this.learnerIDDisplay = learnerIDText
+            ? `Learner ${learnerIDText} | `
+            : "";
         return (
             <div
                 style={{
@@ -684,7 +985,8 @@ class Platform extends React.Component {
                                     this.state.status !== "lessonSelection" &&
                                     (this.lesson.showStuMastery == null ||
                                         this.lesson.showStuMastery)
-                                        ? this.studentNameDisplay +
+                                                                                ? this.learnerIDDisplay +
+                                                                                this.studentNameDisplay +
                                         translate('platform.Mastery') +
                                           Math.round(this.state.mastery * 100) +
                                           "%"
@@ -743,8 +1045,23 @@ class Platform extends React.Component {
                             lessonID={this.props.lessonID}
                             displayMastery={this.displayMastery}
                             progressPercent={this.getProgressBarData().percent / 100}
+                            adaptiveTrace={this.state.adaptiveTrace}
+                            lessonQuestionTypes={this.getLessonQuestionTypes()}
+                            onRequestTheoryRevisit={this.requestTheoryRevisit}
+                            onSkillOutcome={this.recordSkillOutcome}
                         />
                     </ErrorBoundary>
+                ) : (
+                    ""
+                )}
+                {this.state.status === "theory" ? (
+                    <TheoryLessonStage
+                        lesson={this.lesson}
+                        adaptiveTrace={this.state.adaptiveTrace}
+                        revisitSkill={this.state.revisitSkill}
+                        interventionMessage={this.state.interventionMessage}
+                        onBeginAssessment={this.startAssessmentStage}
+                    />
                 ) : (
                     ""
                 )}
@@ -754,6 +1071,13 @@ class Platform extends React.Component {
                             Thank you for learning with {SITE_NAME}. You have
                             finished all problems.
                         </h2>
+                        <Button
+                            variant="contained"
+                            color="primary"
+                            onClick={this.restartLesson}
+                        >
+                            Restart Lesson
+                        </Button>
                     </center>
                 ) : (
                     ""

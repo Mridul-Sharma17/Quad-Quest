@@ -12,9 +12,15 @@ if (IS_DEVELOPMENT) {
 
 // attempt = student answer, actual = [ans1, ans2]
 function _equality(attempt, actual) {
-    const parsedAttempt = attempt.replace(/\s+/g, '').replace(/\\left/g, '').replace(/\\right/g, '');
+    const parsedAttempt = String(attempt)
+        .replace(/\s+/g, '')
+        .replace(/\\left/g, '')
+        .replace(/\\right/g, '');
     return actual.filter(stepAns => {
-        const parsedStepAns = stepAns.replace(/\s+/g, '').replace(/\\left/g, '').replace(/\\right/g, '');
+        const parsedStepAns = String(stepAns)
+            .replace(/\s+/g, '')
+            .replace(/\\left/g, '')
+            .replace(/\\right/g, '');
         //console.log("parsedAttempt: " + parsedAttempt + " parsedStepAns: " + parsedStepAns);
         return parsedAttempt === parsedStepAns
     });
@@ -101,7 +107,7 @@ function convertSwedishToUS(numberString) {
  * @returns {[string, boolean | string, null | WrongAnswerReasons]}
  */
 function checkAnswer({ attempt, actual, answerType, precision = 5, variabilization = {}, questionText = ""}) {
-    if (localStorage.getItem('locale') == 'se') {
+    if (localStorage.getItem('locale') === 'se') {
         attempt = convertSwedishToUS(attempt)
     }
     

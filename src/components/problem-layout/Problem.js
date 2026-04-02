@@ -34,6 +34,9 @@ import { stagingProp } from "../../util/addStagingProperty";
 import { cleanArray } from "../../util/cleanObject";
 import Popup from '../Popup/Popup.js';
 import About from '../../pages/Posts/About.js';
+import theoryCards from "../../content-sources/oatutor/theoryCards.json";
+import interventionMap from "../../content-sources/interventionMap.json";
+import QuadrilateralPropertyLab from "../QuadrilateralPropertyLab";
 
 class Problem extends React.Component {
     static defaultProps = {
@@ -77,11 +80,14 @@ class Problem extends React.Component {
         this.state = {
             stepStates: {},
             firstAttempts: {},
+            incorrectStepCounts: {},
             problemFinished: false,
             showFeedback: false,
             feedback: "",
             feedbackSubmitted: false,
-            showPopup: false
+            showPopup: false,
+            preRemedialHint: null,
+            remediationZone: null,
         };
     }
 
@@ -98,6 +104,16 @@ class Problem extends React.Component {
         // query selects all katex annotation and adds aria label attribute to it
         for (const annotation of document.querySelectorAll("annotation")) {
             annotation.ariaLabel = annotation.textContent;
+        }
+    }
+
+    componentDidUpdate(prevProps) {
+        if (prevProps.problem?.id !== this.props.problem?.id) {
+            this.setState({
+                incorrectStepCounts: {},
+                preRemedialHint: null,
+                remediationZone: null,
+            });
         }
     }
 
@@ -229,8 +245,11 @@ class Problem extends React.Component {
     };
 
     answerMade = (cardIndex, kcArray, isCorrect) => {
-        const { stepStates, firstAttempts } = this.state;
+        const { stepStates, firstAttempts, incorrectStepCounts } = this.state;
         const { lesson, problem } = this.props;
+        const normalizedKcArray = cleanArray(kcArray || []);
+        const stepId = String(problem?.steps?.[cardIndex]?.id || "");
+        const interventionConfig = interventionMap[stepId] || null;
 
         console.debug(`answer made and is correct: ${isCorrect}`);
 
@@ -238,12 +257,12 @@ class Problem extends React.Component {
             return;
         }
 
+        if (typeof this.props.onSkillOutcome === "function") {
+            this.props.onSkillOutcome(normalizedKcArray, isCorrect, stepId);
+        }
+
         if (stepStates[cardIndex] == null) {
-            if (kcArray == null) {
-                kcArray = [];
-            }
-            const _kcArray = cleanArray(kcArray);
-            for (const kc of _kcArray) {
+            for (const kc of normalizedKcArray) {
                 if (!this.bktParams[kc]) {
                     console.debug("invalid KC", kc);
                     this.context.firebase.submitSiteLog(
@@ -286,6 +305,34 @@ class Problem extends React.Component {
             ...stepStates,
             [cardIndex]: isCorrect,
         };
+        const nextIncorrectStepCounts = {
+            ...(incorrectStepCounts || {}),
+        };
+
+        let nextPreRemedialHint = null;
+        let nextRemediationZone = null;
+        if (isCorrect) {
+            nextIncorrectStepCounts[cardIndex] = 0;
+        } else {
+            const nextWrongCount =
+                (nextIncorrectStepCounts[cardIndex] || 0) + 1;
+            nextIncorrectStepCounts[cardIndex] = nextWrongCount;
+
+            if (nextWrongCount === 1) {
+                nextPreRemedialHint = this.buildPreRemedialHint(
+                    cardIndex,
+                    normalizedKcArray,
+                    interventionConfig
+                );
+            } else {
+                nextRemediationZone = this.buildRemediationZone(
+                    cardIndex,
+                    normalizedKcArray,
+                    isCorrect,
+                    interventionConfig
+                );
+            }
+        }
 
         const giveStuFeedback = this.giveStuFeedback;
         const numSteps = problem.steps.length;
@@ -299,11 +346,17 @@ class Problem extends React.Component {
             // console.log("step states: ", Object.values(nextStepStates));
             this.setState({
                 stepStates: nextStepStates,
+                incorrectStepCounts: nextIncorrectStepCounts,
+                preRemedialHint: nextPreRemedialHint,
+                remediationZone: nextRemediationZone,
             });
             if (numAttempted === numSteps) {
                 this.setState({
                     problemFinished: true,
                     stepStates: nextStepStates,
+                    incorrectStepCounts: nextIncorrectStepCounts,
+                    preRemedialHint: nextPreRemedialHint,
+                    remediationZone: nextRemediationZone,
                 });
             }
             // don't attempt to auto scroll to next step
@@ -328,14 +381,123 @@ class Problem extends React.Component {
                 }
                 this.setState({
                     stepStates: nextStepStates,
+                    incorrectStepCounts: nextIncorrectStepCounts,
+                    preRemedialHint: nextPreRemedialHint,
+                    remediationZone: nextRemediationZone,
                 });
             } else {
                 this.setState({
                     problemFinished: true,
                     stepStates: nextStepStates,
+                    incorrectStepCounts: nextIncorrectStepCounts,
+                    preRemedialHint: nextPreRemedialHint,
+                    remediationZone: nextRemediationZone,
                 });
             }
+        } else {
+            this.setState({
+                stepStates: nextStepStates,
+                incorrectStepCounts: nextIncorrectStepCounts,
+                preRemedialHint: nextPreRemedialHint,
+                remediationZone: nextRemediationZone,
+            });
         }
+    };
+
+    getStepHintText = (step) => {
+        if (!step || !step.hints || typeof step.hints !== "object") {
+            return "";
+        }
+
+        const defaultPathway = Array.isArray(step.hints.DefaultPathway)
+            ? step.hints.DefaultPathway
+            : null;
+        const selectedPathway =
+            defaultPathway ||
+            Object.values(step.hints).find((pathway) =>
+                Array.isArray(pathway)
+            );
+
+        if (!Array.isArray(selectedPathway) || selectedPathway.length === 0) {
+            return "";
+        }
+
+        const firstHintWithText =
+            selectedPathway.find((hintNode) =>
+                Boolean(String(hintNode?.text || "").trim())
+            ) || selectedPathway[0];
+
+        return String(firstHintWithText?.text || "").trim();
+    };
+
+    buildPreRemedialHint = (cardIndex, kcArray, interventionConfig = null) => {
+        const adaptiveViewData = this.getAdaptiveViewData();
+        const fallbackSkill = this.getProblemSkills(this.props.problem)[0] || "";
+        const targetSkill =
+            interventionConfig?.targetSkill ||
+            kcArray[0] ||
+            adaptiveViewData?.targetSkill ||
+            fallbackSkill;
+        const theoryCard = targetSkill ? theoryCards[targetSkill] || null : null;
+        const step = this.props.problem?.steps?.[cardIndex];
+        const stepHint = this.getStepHintText(step);
+
+        return {
+            cardIndex,
+            targetSkill,
+            targetStage: interventionConfig?.targetStage || null,
+            title: theoryCard?.title || "Hint before remedial support",
+            hintText:
+                interventionConfig?.preRemedialHint ||
+                stepHint ||
+                theoryCard?.quickCheck ||
+                theoryCard?.keyPoints?.[0] ||
+                "Re-read the property clues and retry this step once.",
+        };
+    };
+
+    buildRemediationZone = (
+        cardIndex,
+        kcArray,
+        isCorrect,
+        interventionConfig = null
+    ) => {
+        if (isCorrect) {
+            return null;
+        }
+
+        const adaptiveViewData = this.getAdaptiveViewData();
+        const fallbackSkill = this.getProblemSkills(this.props.problem)[0] || "";
+        const targetSkill =
+            interventionConfig?.targetSkill ||
+            kcArray[0] ||
+            adaptiveViewData?.targetSkill ||
+            fallbackSkill;
+        const theoryCard = targetSkill ? theoryCards[targetSkill] || null : null;
+
+        return {
+            cardIndex,
+            targetSkill,
+            targetStage: interventionConfig?.targetStage || null,
+            title: theoryCard?.title || "Targeted skill support",
+            suggestedSections:
+                Array.isArray(theoryCard?.revisitSections) &&
+                theoryCard.revisitSections.length > 0
+                    ? theoryCard.revisitSections.slice(0, 2)
+                    : [],
+            quickActions: Array.isArray(theoryCard?.recoveryPlan)
+                ? theoryCard.recoveryPlan.slice(0, 2)
+                : Array.isArray(theoryCard?.keyPoints)
+                ? theoryCard.keyPoints.slice(0, 2)
+                : [
+                      "Re-read the property clues in the question.",
+                      "Write one rule before computing the answer.",
+                  ],
+            quickCheck:
+                interventionConfig?.quickCheck ||
+                theoryCard?.quickCheck ||
+                "Review the theory points and retry this step.",
+        };
     };
 
     clickNextProblem = async () => {
@@ -346,9 +508,12 @@ class Problem extends React.Component {
         this.setState({
             stepStates: {},
             firstAttempts: {},
+            incorrectStepCounts: {},
             problemFinished: false,
             feedback: "",
             feedbackSubmitted: false,
+            preRemedialHint: null,
+            remediationZone: null,
         });
     };
 
@@ -390,42 +555,75 @@ class Problem extends React.Component {
         );
     };
 
+    getProblemSkills = (problem) => {
+        if (!problem || !Array.isArray(problem.steps)) {
+            return [];
+        }
+
+        const skills = new Set();
+        for (const step of problem.steps) {
+            for (const kc of step.knowledgeComponents || []) {
+                if (kc) {
+                    skills.add(kc);
+                }
+            }
+        }
+
+        return Array.from(skills);
+    };
+
+    getAdaptiveViewData = () => {
+        const { problem, adaptiveTrace } = this.props;
+        const fallbackSkill = this.getProblemSkills(problem)[0] || null;
+        const targetSkill = adaptiveTrace?.targetSkill || fallbackSkill;
+        const theoryCard = targetSkill ? theoryCards[targetSkill] || null : null;
+        const targetMastery = adaptiveTrace?.targetMastery;
+
+        if (!targetSkill && !adaptiveTrace?.rationale && !theoryCard) {
+            return null;
+        }
+
+        return {
+            targetSkill,
+            targetMastery,
+            rationale:
+                adaptiveTrace?.rationale ||
+                "This question is selected from your current lesson objectives.",
+            recommendedAction:
+                adaptiveTrace?.recommendedAction ||
+                "Read the theory first and then attempt the step.",
+            theoryCard,
+        };
+    };
+
     getOerLicense = () => {
         const { lesson, problem } = this.props;
-        var oerArray, licenseArray;
-        var oerLink, oerName;
-        var licenseLink, licenseName;
-	try {
-        if (problem.oer != null && problem.oer.includes(" <")) {
-            oerArray = problem.oer.split(" <");
-        } else if (lesson.courseOER != null && lesson.courseOER.includes(" ")) {
-            oerArray = lesson.courseOER.split(" <");
-        } else {
-            oerArray = ["", ""];
-        }
-	} catch(error) {
-		oerArray = ["", ""];
-	}
-
-        oerLink = oerArray[0];
-        oerName = oerArray[1].substring(0, oerArray[1].length - 1);
-
-        try {
-            if (problem.license != null && problem.license.includes(" ")) {
-                licenseArray = problem.license.split(" <");
-            } else if (
-                lesson.courseLicense != null &&
-                lesson.courseLicense.includes(" ")
-            ) {
-                licenseArray = lesson.courseLicense.split(" <");
-            } else {
-                licenseArray = ["", ""];
+        const parseLinkAndName = (raw) => {
+            if (!raw) {
+                return ["", ""];
             }
-        } catch(error) {
-            licenseArray = ["", ""];
-        }
-        licenseLink = licenseArray[0];
-        licenseName = licenseArray[1].substring(0, licenseArray[1].length - 1);
+
+            const value = String(raw).trim();
+            const match = value.match(/^([^<]+?)\s*<([^>]+)>$/);
+            if (match) {
+                return [match[1].trim(), match[2].trim()];
+            }
+
+            if (/^https?:\/\//i.test(value)) {
+                return [value, value];
+            }
+
+            // Plain text notes are valid but not clickable links.
+            return ["", value];
+        };
+
+        const [oerLink, oerName] = parseLinkAndName(
+            problem.oer || lesson.courseOER
+        );
+        const [licenseLink, licenseName] = parseLinkAndName(
+            problem.license || lesson.courseLicense
+        );
+
         return [oerLink, oerName, licenseLink, licenseName];
     };
 
@@ -434,7 +632,23 @@ class Problem extends React.Component {
         const { classes, problem, seed } = this.props;
         const [oerLink, oerName, licenseLink, licenseName] =
             this.getOerLicense();
-        const { showPopup } = this.state;
+        const assessmentFormats = Array.from(
+            new Set(
+                (problem?.steps || []).map((step) => {
+                    if (step.problemType === "MultipleChoice") {
+                        return "Multiple Choice";
+                    }
+                    if (step.answerType === "numeric") {
+                        return "Numeric";
+                    }
+                    return "Text Response";
+                })
+            )
+        );
+        const lessonQuestionTypes = Array.isArray(this.props.lessonQuestionTypes)
+            ? this.props.lessonQuestionTypes
+            : assessmentFormats;
+        const { showPopup, preRemedialHint, remediationZone } = this.state;
         if (problem == null) {
             return <div></div>;
         }
@@ -472,12 +686,106 @@ class Problem extends React.Component {
                                         this.context
                                     )}
                                 </div>
+                                <div
+                                    style={{
+                                        marginTop: 10,
+                                        fontSize: 13,
+                                        color: "#475569",
+                                    }}
+                                >
+                                    Current Stage: Adaptive Assessment
+                                    {lessonQuestionTypes.length > 0
+                                        ? ` | Lesson formats: ${lessonQuestionTypes.join(", ")}`
+                                        : ""}
+                                </div>
                             </CardContent>
                         </Card>
                         <Spacer height={8} />
                         <hr />
                     </div>
                     <div role={"main"}>
+                        {preRemedialHint ? (
+                            <Card className={classes.titleCard} style={{ marginBottom: 10 }}>
+                                <CardContent>
+                                    <h3 style={{ marginTop: 0, marginBottom: 8 }}>
+                                        Hint Before Remedial Support
+                                    </h3>
+                                    <p style={{ marginTop: 0, marginBottom: 8 }}>
+                                        Try this hint once before opening the remedial session.
+                                    </p>
+                                    <div style={{ fontWeight: 700, marginBottom: 6 }}>
+                                        Focus skill: {preRemedialHint.targetSkill || "quadrilateral reasoning"}
+                                    </div>
+                                    <div style={{ marginBottom: 8 }}>
+                                        {preRemedialHint.title}
+                                    </div>
+                                    <div style={{ marginBottom: 8 }}>
+                                        {preRemedialHint.hintText}
+                                    </div>
+                                    <div style={{ fontSize: 12, color: "#475569" }}>
+                                        If this step is still incorrect on the next try, targeted remedial support will open automatically.
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        ) : null}
+                        {remediationZone ? (
+                            <Card className={classes.titleCard} style={{ marginBottom: 10 }}>
+                                <CardContent>
+                                    <h3 style={{ marginTop: 0, marginBottom: 8 }}>
+                                        Remedial Zone
+                                    </h3>
+                                    <p style={{ marginTop: 0 }}>
+                                        You missed this step. Try this targeted support and retry.
+                                    </p>
+                                    <div style={{ fontWeight: 700, marginBottom: 6 }}>
+                                        Focus skill: {remediationZone.targetSkill || "quadrilateral reasoning"}
+                                    </div>
+                                    <div style={{ marginBottom: 6 }}>
+                                        {remediationZone.title}
+                                    </div>
+                                    {Array.isArray(remediationZone.suggestedSections) &&
+                                    remediationZone.suggestedSections.length > 0 ? (
+                                        <div style={{ marginBottom: 8 }}>
+                                            Suggested revisit:
+                                            <ul style={{ marginTop: 4, marginBottom: 0 }}>
+                                                {remediationZone.suggestedSections.map((section) => (
+                                                    <li key={section}>{section}</li>
+                                                ))}
+                                            </ul>
+                                        </div>
+                                    ) : null}
+                                    <ul style={{ marginTop: 0 }}>
+                                        {(remediationZone.quickActions || []).map((action) => (
+                                            <li key={action}>{action}</li>
+                                        ))}
+                                    </ul>
+                                    <div style={{ marginBottom: 12 }}>
+                                        Quick check: {remediationZone.quickCheck}
+                                    </div>
+                                    <QuadrilateralPropertyLab
+                                        skillId={remediationZone.targetSkill}
+                                        compact={true}
+                                    />
+                                    <Spacer height={8} />
+                                    <Button
+                                        className={classes.button}
+                                        onClick={() => {
+                                            if (
+                                                typeof this.props.onRequestTheoryRevisit ===
+                                                "function"
+                                            ) {
+                                                this.props.onRequestTheoryRevisit(
+                                                    remediationZone.targetSkill,
+                                                    remediationZone.targetStage
+                                                );
+                                            }
+                                        }}
+                                    >
+                                        Revisit Theory Stage
+                                    </Button>
+                                </CardContent>
+                            </Card>
+                        ) : null}
                         {problem.steps.map((step, idx) => (
                             <Element
                                 name={idx.toString()}
