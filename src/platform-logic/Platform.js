@@ -1,10 +1,7 @@
 import React from "react";
-import { AppBar, Toolbar } from "@material-ui/core";
 import Button from "@material-ui/core/Button";
 import LinearProgress from "@material-ui/core/LinearProgress";
-import Grid from "@material-ui/core/Grid";
 import ProblemWrapper from "@components/problem-layout/ProblemWrapper.js";
-import LessonSelectionWrapper from "@components/problem-layout/LessonSelectionWrapper.js";
 import TheoryLessonStage from "@components/TheoryLessonStage.js";
 import { withRouter } from "react-router-dom";
 
@@ -22,7 +19,6 @@ import {
 import to from "await-to-js";
 import { toast } from "react-toastify";
 import ToastID from "../util/toastIds";
-import BrandLogoNav from "@components/BrandLogoNav";
 import { cleanArray } from "../util/cleanObject";
 import ErrorBoundary from "@components/ErrorBoundary";
 import { CONTENT_SOURCE } from "@common/global-config";
@@ -36,6 +32,12 @@ const THEORY_STAGE_LABELS = {
     overview: "Stage A: Concept Map",
     lab: "Stage B: Visual Lab",
     practice: "Stage C: Worked Reasoning",
+};
+
+const DEFAULT_TARGET_STAGE_BY_SKILL = {
+    "quad.classify": "overview",
+    "quad.properties": "lab",
+    "quad.reasoning": "practice",
 };
 
 const BEHAVIOR_LONG_RESPONSE_MS = 15000;
@@ -418,6 +420,11 @@ class Platform extends React.Component {
     };
 
     recordSkillOutcome = (skillIds, isCorrect, stepId = "", attemptMeta = {}) => {
+        const attemptSource = String(attemptMeta?.source || "submit").toLowerCase();
+        if (attemptSource !== "submit") {
+            return;
+        }
+
         const normalizedSkillIds = cleanArray(skillIds || []);
         if (!Array.isArray(normalizedSkillIds) || normalizedSkillIds.length === 0) {
             return;
@@ -429,14 +436,41 @@ class Platform extends React.Component {
         );
         const isLongResponse = responseTimeMs >= BEHAVIOR_LONG_RESPONSE_MS;
 
-        const interventionConfig =
-            interventionMap[String(stepId || "").trim()] || null;
-        const preferredSkill =
-            interventionConfig?.targetSkill || normalizedSkillIds[0] || null;
-        const prioritySkills = cleanArray([
-            preferredSkill,
-            ...normalizedSkillIds,
-        ]);
+        const normalizedStepId = String(stepId || "").trim();
+        const interventionConfig = interventionMap[normalizedStepId] || null;
+        const mappedSkill = String(interventionConfig?.targetSkill || "").trim() || null;
+
+        let resolvedSkill = mappedSkill;
+        if (!resolvedSkill) {
+            resolvedSkill = normalizedSkillIds.reduce((weakestSkill, candidateSkill) => {
+                if (!candidateSkill) {
+                    return weakestSkill;
+                }
+                if (!weakestSkill) {
+                    return candidateSkill;
+                }
+
+                const weakestMastery = Number(
+                    this.context?.bktParams?.[weakestSkill]?.probMastery ?? 1
+                );
+                const candidateMastery = Number(
+                    this.context?.bktParams?.[candidateSkill]?.probMastery ?? 1
+                );
+                return candidateMastery < weakestMastery
+                    ? candidateSkill
+                    : weakestSkill;
+            }, null);
+        }
+
+        if (!resolvedSkill) {
+            return;
+        }
+
+        const resolvedTargetStage =
+            interventionConfig?.targetStage ||
+            DEFAULT_TARGET_STAGE_BY_SKILL[resolvedSkill] ||
+            null;
+
         const defaultInterventionMessage =
             "You are making frequent mistakes like this in this subtopic, so it is better to revisit this theory resource before the next question.";
         const defaultBehaviorInterventionMessage =
@@ -447,90 +481,61 @@ class Platform extends React.Component {
                 ...(prevState.skillDifficultyMap || {}),
             };
 
+            const prev = nextSkillDifficultyMap[resolvedSkill] || {
+                totalAttempts: 0,
+                totalIncorrect: 0,
+                recentIncorrect: 0,
+                responseSamples: 0,
+                totalResponseMs: 0,
+                longResponseCount: 0,
+                longResponseStreak: 0,
+            };
+
+            const next = {
+                totalAttempts: prev.totalAttempts + 1,
+                totalIncorrect: prev.totalIncorrect + (isCorrect ? 0 : 1),
+                recentIncorrect: isCorrect ? 0 : prev.recentIncorrect + 1,
+                responseSamples: prev.responseSamples + (responseTimeMs > 0 ? 1 : 0),
+                totalResponseMs: prev.totalResponseMs + responseTimeMs,
+                longResponseCount: prev.longResponseCount + (isLongResponse ? 1 : 0),
+                longResponseStreak:
+                    responseTimeMs <= 0
+                        ? prev.longResponseStreak
+                        : isLongResponse
+                        ? prev.longResponseStreak + 1
+                        : 0,
+            };
+            nextSkillDifficultyMap[resolvedSkill] = next;
+
+            const shouldInterveneByAccuracy =
+                !isCorrect &&
+                (next.recentIncorrect >= 2 || next.totalIncorrect >= 3);
+            const shouldInterveneByBehavior =
+                responseTimeMs > 0 &&
+                (next.longResponseStreak >=
+                    BEHAVIOR_LONG_RESPONSE_STREAK_FOR_INTERVENTION ||
+                    next.longResponseCount >=
+                        BEHAVIOR_LONG_RESPONSE_STREAK_FOR_INTERVENTION);
+
             let candidateIntervention = prevState.pendingTheoryIntervention;
-            const triggeredSkills = {};
-            const skillTriggerReason = {};
-
-            for (const skillId of normalizedSkillIds) {
-                if (!skillId) {
-                    continue;
-                }
-
-                const prev = nextSkillDifficultyMap[skillId] || {
-                    totalAttempts: 0,
-                    totalIncorrect: 0,
-                    recentIncorrect: 0,
-                    responseSamples: 0,
-                    totalResponseMs: 0,
-                    longResponseCount: 0,
-                    longResponseStreak: 0,
-                };
-
-                const next = {
-                    totalAttempts: prev.totalAttempts + 1,
-                    totalIncorrect: prev.totalIncorrect + (isCorrect ? 0 : 1),
-                    recentIncorrect: isCorrect ? 0 : prev.recentIncorrect + 1,
-                    responseSamples:
-                        prev.responseSamples + (responseTimeMs > 0 ? 1 : 0),
-                    totalResponseMs: prev.totalResponseMs + responseTimeMs,
-                    longResponseCount:
-                        prev.longResponseCount + (isLongResponse ? 1 : 0),
-                    longResponseStreak:
-                        responseTimeMs <= 0
-                            ? prev.longResponseStreak
-                            : isLongResponse
-                            ? prev.longResponseStreak + 1
-                            : 0,
-                };
-
-                nextSkillDifficultyMap[skillId] = next;
-
-                const shouldInterveneByAccuracy =
-                    !isCorrect &&
-                    (next.recentIncorrect >= 2 || next.totalIncorrect >= 3);
-                const shouldInterveneByBehavior =
-                    responseTimeMs > 0 &&
-                    (next.longResponseStreak >=
-                        BEHAVIOR_LONG_RESPONSE_STREAK_FOR_INTERVENTION ||
-                        next.longResponseCount >=
-                            BEHAVIOR_LONG_RESPONSE_STREAK_FOR_INTERVENTION);
-
-                if (shouldInterveneByAccuracy || shouldInterveneByBehavior) {
-                    triggeredSkills[skillId] = next;
-                    skillTriggerReason[skillId] = {
-                        accuracy: shouldInterveneByAccuracy,
-                        behavior: shouldInterveneByBehavior,
-                    };
-                }
-            }
-
-            const selectedSkill = prioritySkills.find(
-                (skillId) => Boolean(triggeredSkills[skillId])
-            );
-
-            if (selectedSkill) {
-                const selectedStats = triggeredSkills[selectedSkill];
-                const selectedReason = skillTriggerReason[selectedSkill] || {
-                    accuracy: false,
-                    behavior: false,
-                };
+            if (shouldInterveneByAccuracy || shouldInterveneByBehavior) {
                 const preferBehaviorMessage =
-                    selectedReason.behavior && !selectedReason.accuracy;
+                    shouldInterveneByBehavior && !shouldInterveneByAccuracy;
                 candidateIntervention = {
-                    skill: selectedSkill,
-                    recentIncorrect: selectedStats.recentIncorrect,
-                    totalIncorrect: selectedStats.totalIncorrect,
+                    skill: resolvedSkill,
+                    recentIncorrect: next.recentIncorrect,
+                    totalIncorrect: next.totalIncorrect,
                     message:
                         preferBehaviorMessage
                             ? interventionConfig?.behaviorInterventionMessage ||
                               defaultBehaviorInterventionMessage
                             : interventionConfig?.interventionMessage ||
                               defaultInterventionMessage,
-                    targetStage: interventionConfig?.targetStage || null,
-                    stepId: stepId || null,
+                    targetStage: resolvedTargetStage,
+                    stepId: normalizedStepId || null,
                     triggerType: preferBehaviorMessage
                         ? "behavior"
-                        : selectedReason.accuracy && selectedReason.behavior
+                        : shouldInterveneByAccuracy && shouldInterveneByBehavior
                         ? "mixed"
                         : "accuracy",
                 };
@@ -984,104 +989,64 @@ class Platform extends React.Component {
         this.learnerIDDisplay = learnerIDText
             ? `Learner ${learnerIDText} | `
             : "";
+        const lessonTitle = this.lesson
+            ? `${this.lesson.name} ${this.lesson.topics}`
+            : "Understanding Quadrilaterals";
+        const showMasteryText =
+            this.state.status !== "courseSelection" &&
+            this.state.status !== "lessonSelection" &&
+            (this.lesson?.showStuMastery == null || this.lesson?.showStuMastery);
+        const masteryPercent = Math.round((this.state.mastery || 0) * 100);
         return (
             <div
+                className="qq-shell"
                 style={{
-                    backgroundColor: "#F6F6F6",
+                    backgroundColor: "transparent",
                     paddingBottom: 20,
                     display: "flex",
                     flexDirection: "column",
                 }}
             >
-                <AppBar position="static">
-                    <Toolbar>
-                        <Grid
-                            container
-                            spacing={0}
-                            role={"navigation"}
-                            alignItems={"center"}
-                        >
-                            <Grid item xs={3} key={1}>
-                                <BrandLogoNav
-                                    isPrivileged={this.isPrivileged}
-                                />
-                            </Grid>
-                            <Grid item xs={6} key={2}>
-                                <div
-                                    style={{
-                                        textAlign: "center",
-                                        textAlignVertical: "center",
-                                        paddingTop: "3px",
-                                    }}
-                                >
-                                    {Boolean(
-                                        findLessonById(this.props.lessonID)
-                                    )
-                                        ? findLessonById(this.props.lessonID)
-                                              .name +
-                                          " " +
-                                          findLessonById(this.props.lessonID)
-                                              .topics
-                                        : ""}
-                                </div>
-                            </Grid>
-                            <Grid item xs={3} key={3}>
-                                <div
-                                    style={{
-                                        textAlign: "right",
-                                        paddingTop: "3px",
-                                    }}
-                                >
-                                    {this.state.status !== "courseSelection" &&
-                                    this.state.status !== "lessonSelection" &&
-                                    (this.lesson.showStuMastery == null ||
-                                        this.lesson.showStuMastery)
-                                                                                ? this.learnerIDDisplay +
-                                                                                this.studentNameDisplay +
-                                        translate('platform.Mastery') +
-                                          Math.round(this.state.mastery * 100) +
-                                          "%"
-                                        : ""}
-                                </div>
-                            </Grid>
-                        </Grid>
-                    </Toolbar>
-                </AppBar>
+                <div className="qq-hero-header">
+                    <div className="qq-hero-left">
+                        <div className="qq-hero-kicker">Personalized Chapter</div>
+                        <h1 className="qq-hero-title">{lessonTitle}</h1>
+                        <div className="qq-hero-subtitle">
+                            Theory-first adaptive learning with interactive visual lab.
+                        </div>
+                    </div>
+                    <div className="qq-hero-right">
+                        {showMasteryText ? (
+                            <div className="qq-mastery-chip">
+                                {this.learnerIDDisplay}
+                                {this.studentNameDisplay}
+                                {translate("platform.Mastery")}
+                                {masteryPercent}%
+                            </div>
+                        ) : null}
+                    </div>
+                </div>
 
                 {/* Progress Bar */}
                 {this.lesson?.enableCompletionMode && (
-                    <div style={{ padding: "10px 20px" }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12 }}>
+                    <div className="qq-progress-card" style={{ padding: "10px 20px" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 8 }}>
                             <span>Progress</span>
                             <span>{this.getProgressBarData().percent}% ({this.getProgressBarData().completed}/{this.getProgressBarData().total})</span>
                         </div>
                         <LinearProgress
                             variant="determinate"
                             value={this.getProgressBarData().percent}
-                            style={{ height: 10, borderRadius: 5 }}
+                            style={{ height: 10, borderRadius: 999 }}
                         />
                     </div>
                 )}
 
-                {this.state.status === "courseSelection" ? (
-                    <LessonSelectionWrapper
-                        selectLesson={this.selectLesson}
-                        selectCourse={this.selectCourse}
-                        history={this.props.history}
-                        removeProgress={this.props.removeProgress}
-                    />
-                ) : (
-                    ""
-                )}
-                {this.state.status === "lessonSelection" ? (
-                    <LessonSelectionWrapper
-                        selectLesson={this.selectLesson}
-                        removeProgress={this.props.removeProgress}
-                        history={this.props.history}
-                        courseNum={this.props.courseNum}
-                    />
-                ) : (
-                    ""
+                {(this.state.status === "courseSelection" ||
+                    this.state.status === "lessonSelection") && (
+                    <div className="qq-loading-card">
+                        Preparing your personalized quadrilateral chapter...
+                    </div>
                 )}
                 {this.state.status === "learning" ? (
                     <ErrorBoundary

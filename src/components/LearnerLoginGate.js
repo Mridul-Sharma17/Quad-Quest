@@ -32,23 +32,82 @@ class LearnerLoginGate extends React.Component {
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    background: "linear-gradient(135deg, #f0f9ff 0%, #fffbeb 100%)",
-                    padding: 16,
+                    background:
+                        "radial-gradient(circle at 20% 15%, rgba(127,220,200,0.32), transparent 34%), radial-gradient(circle at 85% 12%, rgba(30,159,134,0.14), transparent 32%), linear-gradient(135deg, #effffb 0%, #f8fffd 100%)",
+                    padding: 20,
                 }}
             >
-                <Card style={{ width: "100%", maxWidth: 560 }}>
+                <Card
+                    style={{
+                        width: "100%",
+                        maxWidth: 760,
+                        borderRadius: 24,
+                        overflow: "hidden",
+                        animation: "qqRiseIn 420ms ease",
+                    }}
+                >
                     <CardContent>
-                        <h2 style={{ marginTop: 0, marginBottom: 8 }}>
-                            Learner Login
-                        </h2>
-                        <p style={{ marginTop: 0, marginBottom: 16, color: "#475569" }}>
-                            Enter your learner ID to start theory-first adaptive assessment.
-                        </p>
+                        <div
+                            style={{
+                                display: "grid",
+                                gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+                                gap: 20,
+                                alignItems: "center",
+                            }}
+                        >
+                            <div>
+                                <div
+                                    style={{
+                                        display: "inline-flex",
+                                        marginBottom: 8,
+                                        fontSize: 11,
+                                        fontWeight: 700,
+                                        letterSpacing: "0.08em",
+                                        textTransform: "uppercase",
+                                        color: "#167c67",
+                                        background: "rgba(30,159,134,0.14)",
+                                        borderRadius: 999,
+                                        padding: "4px 10px",
+                                    }}
+                                >
+                                    Personalized Learning Studio
+                                </div>
+                                <h2
+                                    style={{
+                                        marginTop: 0,
+                                        marginBottom: 8,
+                                        fontFamily: "Space Grotesk, Outfit, sans-serif",
+                                        fontSize: "2rem",
+                                        lineHeight: 1.15,
+                                    }}
+                                >
+                                    Understand Quadrilaterals
+                                </h2>
+                                <p
+                                    style={{
+                                        marginTop: 0,
+                                        marginBottom: 0,
+                                        color: "#2d4f4a",
+                                        lineHeight: 1.6,
+                                    }}
+                                >
+                                    Theory-first, adaptive questions, and interactive visual labs.
+                                    Enter your learner ID and we will open your chapter directly.
+                                </p>
+                            </div>
+                            <div
+                                style={{
+                                    padding: 14,
+                                    borderRadius: 16,
+                                    border: "1px solid rgba(22,124,103,0.2)",
+                                    background: "rgba(255,255,255,0.74)",
+                                }}
+                            >
                         <form onSubmit={this.onSubmit}>
                             <Grid container spacing={2}>
                                 <Grid item xs={12}>
                                     <TextField
-                                        label="Learner ID"
+                                        label="Enter Learner ID"
                                         fullWidth
                                         variant="outlined"
                                         value={this.state.learnerID}
@@ -75,11 +134,13 @@ class LearnerLoginGate extends React.Component {
                                         color="primary"
                                         fullWidth
                                     >
-                                        Continue
+                                        Start Quadrilateral Chapter
                                     </Button>
                                 </Grid>
                             </Grid>
                         </form>
+                            </div>
+                        </div>
                     </CardContent>
                 </Card>
             </div>

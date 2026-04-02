@@ -1,15 +1,17 @@
 const styles = theme => ({
     card: {
-        width: '65%',
+        width: 'min(920px, 94%)',
         marginLeft: 'auto',
         marginRight: 'auto',
-        marginBottom: 20
+        marginBottom: 20,
+        borderRadius: 18,
     },
     hintCard: {
-        width: '40em',
+        width: 'min(760px, 94%)',
         marginLeft: 'auto',
         marginRight: 'auto',
-        marginBottom: 20
+        marginBottom: 20,
+        borderRadius: 14,
     },
     bullet: {
         display: 'inline-block',
@@ -24,24 +26,30 @@ const styles = theme => ({
     },
 
     button: {
-        backgroundColor: '#8c94ff',
+        backgroundColor: '#1e9f86',
+        color: '#f5fffc',
+        borderRadius: 12,
+        textTransform: 'none',
         marginLeft: 'auto',
         marginRight: 'auto',
-        paddingLeft: 10,
-        paddingRight: 10,
-        width: "20%"
+        paddingLeft: 14,
+        paddingRight: 14,
+        width: "auto",
+        minWidth: 140,
     },
 
     stepHeader: {
         //textAlign: 'center',
-        fontSize: 20,
+        fontSize: 22,
+        fontFamily: 'Space Grotesk, Outfit, sans-serif',
         marginTop: 0,
         marginLeft: 10
     },
 
     stepBody: {
         //textAlign: 'center',
-        fontSize: 20,
+        fontSize: 18,
+        lineHeight: 1.7,
         marginTop: 10,
         marginBottom: 30,
         marginLeft: 10
@@ -87,23 +95,26 @@ const styles = theme => ({
     prompt: {
         marginLeft: 0,
         marginRight: 0,
-        marginTop: 20,
+        marginTop: 10,
         textAlign: 'center',
         fontSize: 20,
-        fontFamily: 'Titillium Web, sans-serif',
+        fontFamily: 'Space Grotesk, Outfit, sans-serif',
     },
     titleCard: {
-        width: '75%',
+        width: 'min(980px, 94%)',
         marginLeft: 'auto',
         marginRight: 'auto',
         paddingBottom: 0,
+        borderRadius: 18,
     },
     problemHeader: {
-        fontSize: 25,
+        fontSize: 28,
         marginTop: 0,
+        fontFamily: 'Space Grotesk, Outfit, sans-serif',
     },
     problemBody: {
-        fontSize: 20,
+        fontSize: 18,
+        lineHeight: 1.7,
         marginTop: 10,
     },
     problemStepHeader: {

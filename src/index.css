@@ -1,6 +1,28 @@
+@import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Outfit:wght@400;500;600;700&display=swap");
+
+:root {
+    --sea-50: #f2fffc;
+    --sea-100: #d8f7f0;
+    --sea-200: #b6efe4;
+    --sea-300: #7fdcc8;
+    --sea-400: #45c8ac;
+    --sea-500: #1e9f86;
+    --sea-600: #167c67;
+    --ink-900: #0f2e2a;
+    --ink-700: #2d4f4a;
+    --glass-bg: rgba(255, 255, 255, 0.58);
+    --glass-border: rgba(22, 124, 103, 0.18);
+}
+
 body {
     margin: 0;
     padding: 0;
+    background:
+        radial-gradient(circle at 12% 10%, rgba(127, 220, 200, 0.45), transparent 36%),
+        radial-gradient(circle at 90% 12%, rgba(30, 159, 134, 0.16), transparent 34%),
+        radial-gradient(circle at 22% 88%, rgba(69, 200, 172, 0.2), transparent 30%),
+        linear-gradient(145deg, #effffb 0%, #f8fffd 46%, #ecfffa 100%);
+    color: var(--ink-900);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
 }
@@ -18,7 +40,7 @@ footer {
 *::before,
 *::after {
     box-sizing: border-box;
-    font-family: 'Titillium Web', 'sans-serif';
+    font-family: "Outfit", "Space Grotesk", "Trebuchet MS", sans-serif;
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -63,4 +85,143 @@ blockquote:before {
 .Toastify__toast-container--top-right {
     top: 4.5em !important;
     right: 0.5em !important;
+}
+
+.MuiCard-root {
+    background: var(--glass-bg) !important;
+    border: 1px solid var(--glass-border) !important;
+    box-shadow: 0 18px 45px rgba(9, 77, 64, 0.11) !important;
+    backdrop-filter: blur(12px);
+    border-radius: 18px !important;
+}
+
+.MuiButton-containedPrimary {
+    background: linear-gradient(120deg, var(--sea-500), var(--sea-400)) !important;
+    color: #f5fffc !important;
+    border-radius: 12px !important;
+    box-shadow: 0 12px 26px rgba(22, 124, 103, 0.28) !important;
+    text-transform: none !important;
+    letter-spacing: 0.01em;
+}
+
+.MuiButton-outlinedPrimary {
+    color: var(--sea-600) !important;
+    border-color: rgba(22, 124, 103, 0.35) !important;
+    border-radius: 12px !important;
+    text-transform: none !important;
+}
+
+.qq-shell {
+    padding: 22px clamp(12px, 2vw, 26px) 30px;
+}
+
+.qq-hero-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 18px;
+    padding: 18px;
+    margin: 0 auto 14px;
+    max-width: 1200px;
+    border-radius: 20px;
+    background: linear-gradient(120deg, rgba(255, 255, 255, 0.82), rgba(234, 255, 248, 0.82));
+    border: 1px solid rgba(30, 159, 134, 0.18);
+    box-shadow: 0 14px 36px rgba(6, 92, 75, 0.14);
+    animation: qqRiseIn 420ms ease;
+}
+
+.qq-hero-left {
+    min-width: 0;
+}
+
+.qq-hero-kicker {
+    display: inline-flex;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-weight: 600;
+    font-size: 11px;
+    color: var(--sea-600);
+    background: rgba(30, 159, 134, 0.14);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.qq-hero-title {
+    margin: 10px 0 6px;
+    font-family: "Space Grotesk", "Outfit", sans-serif;
+    font-size: clamp(1.25rem, 1rem + 1vw, 1.9rem);
+    line-height: 1.16;
+}
+
+.qq-hero-subtitle {
+    color: var(--ink-700);
+    font-size: 0.98rem;
+}
+
+.qq-hero-right {
+    display: flex;
+    justify-content: flex-end;
+}
+
+.qq-mastery-chip {
+    padding: 8px 12px;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.72);
+    border: 1px solid rgba(22, 124, 103, 0.18);
+    color: var(--sea-600);
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.qq-progress-card {
+    max-width: 1200px;
+    margin: 0 auto 14px;
+    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.72);
+    border: 1px solid rgba(22, 124, 103, 0.15);
+    box-shadow: 0 10px 26px rgba(14, 101, 84, 0.12);
+}
+
+.qq-loading-card {
+    max-width: 1200px;
+    margin: 12px auto;
+    border-radius: 14px;
+    border: 1px dashed rgba(22, 124, 103, 0.38);
+    background: rgba(255, 255, 255, 0.65);
+    color: var(--sea-600);
+    font-weight: 600;
+    padding: 16px;
+    animation: qqPulse 1.8s ease-in-out infinite;
+}
+
+@keyframes qqRiseIn {
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes qqPulse {
+    0%,
+    100% {
+        box-shadow: 0 0 0 rgba(0, 0, 0, 0);
+    }
+    50% {
+        box-shadow: 0 0 0 8px rgba(30, 159, 134, 0.08);
+    }
+}
+
+@media (max-width: 768px) {
+    .qq-hero-header {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .qq-hero-right {
+        justify-content: flex-start;
+    }
 }

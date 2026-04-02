@@ -1,8 +1,7 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import Button from "@material-ui/core/Button";
 import Card from "@material-ui/core/Card";
 import CardContent from "@material-ui/core/CardContent";
-import Grid from "@material-ui/core/Grid";
 import theoryCards from "../content-sources/oatutor/theoryCards.json";
 import QuadrilateralPropertyLab from "./QuadrilateralPropertyLab";
 
@@ -12,68 +11,380 @@ const SKILL_LABELS = {
     "quad.reasoning": "Reasoning",
 };
 
-const STAGE_BY_SKILL = {
-    "quad.classify": "overview",
-    "quad.properties": "lab",
-    "quad.reasoning": "practice",
+const SKILL_ORDER = ["quad.classify", "quad.properties", "quad.reasoning"];
+
+const STAGE_LABELS = {
+    overview: "Concept Studio",
+    lab: "Visual Lab",
+    practice: "Reasoning Workshop",
+};
+
+const inferStageForSkill = (skillId) => {
+    if (skillId === "quad.classify") {
+        return "overview";
+    }
+    if (skillId === "quad.properties") {
+        return "lab";
+    }
+    return "practice";
+};
+
+const fallbackTheoryCard = (skillId) => ({
+    title: SKILL_LABELS[skillId] || "Quadrilateral Focus",
+    summary: "Review this concept before moving to adaptive questions.",
+    keyPoints: [],
+    quickCheck: "Explain one rule in your own words.",
+});
+
+const calloutStyle = {
+    borderRadius: 14,
+    padding: "10px 12px",
+    marginBottom: 10,
+    border: "1px solid rgba(22,124,103,0.24)",
+    background: "rgba(255,255,255,0.76)",
+    color: "#204c45",
 };
 
 const sectionTitleStyle = {
     marginTop: 12,
     marginBottom: 6,
-    fontSize: 13,
-    letterSpacing: "0.02em",
-    color: "#334155",
+    color: "#365f58",
+    letterSpacing: "0.03em",
     textTransform: "uppercase",
+    fontSize: 12,
+    fontWeight: 700,
 };
 
-const STAGES = [
-    { id: "overview", label: "Stage A: Concept Map" },
-    { id: "lab", label: "Stage B: Visual Lab" },
-    { id: "practice", label: "Stage C: Worked Reasoning" },
-];
-
-const inferStageForSkill = (skillId) => {
-    return STAGE_BY_SKILL[skillId] || "overview";
+const getTheoryResumeStorageKey = (lessonId) => {
+    return `qq-theory-last-section:${String(lessonId || "default")}`;
 };
 
-const skillVisual = (skillId) => {
+const readTheoryResumePage = (lessonId) => {
+    try {
+        return String(
+            window.localStorage.getItem(getTheoryResumeStorageKey(lessonId)) || ""
+        ).trim();
+    } catch (error) {
+        return "";
+    }
+};
+
+const writeTheoryResumePage = (lessonId, pageId) => {
+    if (!pageId) {
+        return;
+    }
+    try {
+        window.localStorage.setItem(
+            getTheoryResumeStorageKey(lessonId),
+            String(pageId)
+        );
+    } catch (error) {
+        // ignore storage failures in restricted browser modes
+    }
+};
+
+const visualCardStyle = {
+    borderRadius: 14,
+    border: "1px solid rgba(22,124,103,0.2)",
+    background: "rgba(255,255,255,0.74)",
+    padding: 10,
+};
+
+const visualCaptionStyle = {
+    marginTop: 8,
+    fontSize: 12,
+    lineHeight: 1.5,
+    color: "#496762",
+};
+
+const renderSkillVisualization = (skillId) => {
     if (skillId === "quad.classify") {
         return (
-            <svg width="100%" height="88" viewBox="0 0 280 88" role="img" aria-label="Quadrilateral classification visual">
-                <rect x="10" y="18" width="56" height="40" fill="#f0f9ff" stroke="#0e7490" strokeWidth="2" />
-                <polygon points="102,20 152,20 170,58 84,58" fill="#fefce8" stroke="#a16207" strokeWidth="2" />
-                <polygon points="198,22 246,16 266,56 210,62" fill="#f7fee7" stroke="#4d7c0f" strokeWidth="2" />
-                <text x="20" y="74" fontSize="11" fill="#155e75">rectangle</text>
-                <text x="102" y="74" fontSize="11" fill="#854d0e">trapezium</text>
-                <text x="216" y="74" fontSize="11" fill="#3f6212">kite</text>
+            <svg width="100%" height="130" viewBox="0 0 320 130" role="img" aria-label="Classification map of quadrilaterals">
+                <rect x="8" y="12" width="78" height="54" rx="8" fill="#e9fff8" stroke="#1e9f86" strokeWidth="2" />
+                <rect x="120" y="12" width="78" height="54" rx="8" fill="#eff6ff" stroke="#1d4ed8" strokeWidth="2" />
+                <rect x="232" y="12" width="78" height="54" rx="8" fill="#fff7ed" stroke="#ea580c" strokeWidth="2" />
+                <polygon points="46,95 78,72 110,95 88,118 24,118" fill="#f0fdf4" stroke="#15803d" strokeWidth="2" />
+                <line x1="46" y1="66" x2="46" y2="88" stroke="#2d5a53" strokeWidth="1.5" />
+                <line x1="160" y1="66" x2="160" y2="96" stroke="#2d5a53" strokeWidth="1.5" />
+                <line x1="272" y1="66" x2="272" y2="96" stroke="#2d5a53" strokeWidth="1.5" />
+                <text x="20" y="44" fontSize="11" fill="#115e59">Trapezium</text>
+                <text x="137" y="44" fontSize="11" fill="#1e3a8a">Rectangle</text>
+                <text x="258" y="44" fontSize="11" fill="#9a3412">Rhombus</text>
+                <text x="58" y="112" fontSize="11" fill="#14532d">Kite</text>
+                <text x="180" y="109" fontSize="11" fill="#334155">Property-first classification map</text>
             </svg>
         );
     }
 
     if (skillId === "quad.properties") {
         return (
-            <svg width="100%" height="88" viewBox="0 0 280 88" role="img" aria-label="Quadrilateral properties visual">
-                <polygon points="34,16 118,16 138,60 14,60" fill="#eef2ff" stroke="#3730a3" strokeWidth="2" />
-                <text x="156" y="30" fontSize="12" fill="#1e1b4b">a + b + c + d = 360</text>
-                <text x="156" y="50" fontSize="12" fill="#1e1b4b">opposite angles equal</text>
-                <line x1="14" y1="60" x2="138" y2="60" stroke="#3730a3" strokeWidth="2" />
+            <svg width="100%" height="130" viewBox="0 0 320 130" role="img" aria-label="Properties of quadrilateral with angle and side relations">
+                <polygon points="24,20 130,20 154,94 8,94" fill="#e0f2fe" stroke="#0c4a6e" strokeWidth="2" />
+                <line x1="24" y1="20" x2="130" y2="20" stroke="#0c4a6e" strokeWidth="3" />
+                <line x1="8" y1="94" x2="154" y2="94" stroke="#0c4a6e" strokeWidth="3" />
+                <text x="172" y="34" fontSize="12" fill="#0f172a">A + B + C + D = 360°</text>
+                <text x="172" y="56" fontSize="12" fill="#0f172a">Opposite angles are equal</text>
+                <text x="172" y="78" fontSize="12" fill="#0f172a">Adjacent angles sum to 180°</text>
+                <text x="172" y="102" fontSize="11" fill="#334155">Equation before calculation</text>
             </svg>
         );
     }
 
     return (
-        <svg width="100%" height="88" viewBox="0 0 280 88" role="img" aria-label="Reasoning strategy visual">
-            <rect x="10" y="20" width="72" height="24" rx="6" fill="#ecfeff" stroke="#0f766e" strokeWidth="2" />
-            <rect x="108" y="20" width="72" height="24" rx="6" fill="#f0fdf4" stroke="#166534" strokeWidth="2" />
-            <rect x="206" y="20" width="64" height="24" rx="6" fill="#fef2f2" stroke="#991b1b" strokeWidth="2" />
-            <line x1="82" y1="32" x2="108" y2="32" stroke="#334155" strokeWidth="2" />
-            <line x1="180" y1="32" x2="206" y2="32" stroke="#334155" strokeWidth="2" />
-            <text x="20" y="36" fontSize="11" fill="#115e59">property</text>
-            <text x="120" y="36" fontSize="11" fill="#14532d">equation</text>
-            <text x="216" y="36" fontSize="11" fill="#7f1d1d">verify</text>
-            <text x="10" y="72" fontSize="11" fill="#334155">Write rule -&gt; solve -&gt; check</text>
+        <svg width="100%" height="130" viewBox="0 0 320 130" role="img" aria-label="Reasoning flow from rule to equation to verification">
+            <rect x="8" y="34" width="92" height="42" rx="8" fill="#ecfeff" stroke="#0f766e" strokeWidth="2" />
+            <rect x="114" y="34" width="92" height="42" rx="8" fill="#eff6ff" stroke="#1d4ed8" strokeWidth="2" />
+            <rect x="220" y="34" width="92" height="42" rx="8" fill="#fef2f2" stroke="#b91c1c" strokeWidth="2" />
+            <line x1="100" y1="55" x2="114" y2="55" stroke="#334155" strokeWidth="2" />
+            <line x1="206" y1="55" x2="220" y2="55" stroke="#334155" strokeWidth="2" />
+            <text x="24" y="59" fontSize="12" fill="#115e59">Rule</text>
+            <text x="130" y="59" fontSize="12" fill="#1d4ed8">Equation</text>
+            <text x="236" y="59" fontSize="12" fill="#991b1b">Verify</text>
+            <text x="12" y="103" fontSize="11" fill="#334155">{"R-I-D-E cycle: Read -> Identify -> Derive -> Evaluate"}</text>
         </svg>
+    );
+};
+
+const getAnimationPrompt = (skillId) => {
+    if (skillId === "quad.classify") {
+        return "Watch which single property change moves a shape from one class to another.";
+    }
+    if (skillId === "quad.properties") {
+        return "Track angle and side changes visually, then write the matching equation.";
+    }
+    return "Build a chain: property statement -> equation -> consistency check.";
+};
+
+const ClassificationStretchExercise = () => {
+    const [shear, setShear] = useState(22);
+    const [topShift, setTopShift] = useState(0);
+
+    const points = useMemo(() => {
+        const baseY = 132;
+        const leftX = 18;
+        const width = 172;
+        const height = 88;
+        const a = { x: leftX, y: baseY };
+        const b = { x: leftX + width, y: baseY };
+        const c = { x: leftX + width + shear - topShift, y: baseY - height };
+        const d = { x: leftX + shear + topShift, y: baseY - height };
+        return { a, b, c, d };
+    }, [shear, topShift]);
+
+    const topParallel = Math.abs(topShift) <= 8;
+    const sideParallel = Math.abs(shear) <= 8;
+
+    let profile = "General quadrilateral behavior";
+    if (topParallel && sideParallel) {
+        profile = "Parallelogram-family behavior";
+    } else if (topParallel && !sideParallel) {
+        profile = "One-parallel-pair behavior (trapezium-like)";
+    } else if (!topParallel && sideParallel) {
+        profile = "Two side directions are close, but top-base relation changed";
+    }
+
+    return (
+        <div style={visualCardStyle}>
+            <div style={{ fontSize: 12, color: "#244f48", marginBottom: 8 }}>
+                Stretch the shape and observe class-pattern transitions.
+            </div>
+            <svg width="100%" height="160" viewBox="0 0 240 150" role="img" aria-label="Shape stretch exercise">
+                <polygon
+                    points={`${points.a.x},${points.a.y} ${points.b.x},${points.b.y} ${points.c.x},${points.c.y} ${points.d.x},${points.d.y}`}
+                    fill="#d8fff5"
+                    stroke="#1e9f86"
+                    strokeWidth="2"
+                />
+            </svg>
+            <div style={{ marginTop: 8 }}>
+                <div style={{ fontSize: 12, color: "#3d6760", marginBottom: 2 }}>
+                    Side orientation: <strong>{shear}</strong>
+                </div>
+                <input
+                    type="range"
+                    min={-40}
+                    max={45}
+                    value={shear}
+                    onChange={(event) => setShear(Number(event.target.value))}
+                    style={{ width: "100%" }}
+                />
+            </div>
+            <div style={{ marginTop: 8 }}>
+                <div style={{ fontSize: 12, color: "#3d6760", marginBottom: 2 }}>
+                    Top shift: <strong>{topShift}</strong>
+                </div>
+                <input
+                    type="range"
+                    min={-35}
+                    max={35}
+                    value={topShift}
+                    onChange={(event) => setTopShift(Number(event.target.value))}
+                    style={{ width: "100%" }}
+                />
+            </div>
+            <div style={{ ...calloutStyle, marginTop: 8, marginBottom: 0 }}>
+                Observed profile: <strong>{profile}</strong>
+            </div>
+        </div>
+    );
+};
+
+const PropertiesAngleExercise = () => {
+    const [angleA, setAngleA] = useState(112);
+    const angleB = 180 - angleA;
+    const angleC = angleA;
+    const angleD = angleB;
+    const challengeSolved = Math.abs(angleB - 65) <= 1;
+
+    return (
+        <div style={visualCardStyle}>
+            <div style={{ fontSize: 12, color: "#244f48", marginBottom: 8 }}>
+                Angle relation explorer for a parallelogram.
+            </div>
+            <div style={{ marginBottom: 8 }}>
+                <div style={{ fontSize: 12, color: "#3d6760", marginBottom: 2 }}>
+                    Set angle A: <strong>{angleA}deg</strong>
+                </div>
+                <input
+                    type="range"
+                    min={35}
+                    max={145}
+                    value={angleA}
+                    onChange={(event) => setAngleA(Number(event.target.value))}
+                    style={{ width: "100%" }}
+                />
+            </div>
+            <div
+                style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(4, minmax(52px, 1fr))",
+                    gap: 8,
+                    marginBottom: 8,
+                }}
+            >
+                {["A", "B", "C", "D"].map((name, index) => {
+                    const value = [angleA, angleB, angleC, angleD][index];
+                    return (
+                        <div
+                            key={name}
+                            style={{
+                                borderRadius: 10,
+                                border: "1px solid rgba(22,124,103,0.24)",
+                                background: "rgba(255,255,255,0.78)",
+                                padding: "8px 6px",
+                                textAlign: "center",
+                                fontSize: 12,
+                            }}
+                        >
+                            <div style={{ color: "#4d7771" }}>{name}</div>
+                            <strong>{value}deg</strong>
+                        </div>
+                    );
+                })}
+            </div>
+            <div style={{ ...calloutStyle, marginBottom: 8 }}>
+                Equation check: A + B = 180, A + B + C + D = {angleA + angleB + angleC + angleD}
+            </div>
+            <div style={{ fontSize: 12, color: challengeSolved ? "#166534" : "#7c2d12" }}>
+                Challenge: make adjacent angle B close to 65deg. {challengeSolved ? "Solved." : "Keep adjusting A."}
+            </div>
+        </div>
+    );
+};
+
+const REASONING_CHAIN = [
+    {
+        prompt: "Choose the best first step when one angle in a parallelogram is 112deg.",
+        options: [
+            "Write: adjacent angles in a parallelogram sum to 180deg.",
+            "Assume all angles are 90deg.",
+            "Use perimeter formula directly.",
+        ],
+        correct: "Write: adjacent angles in a parallelogram sum to 180deg.",
+    },
+    {
+        prompt: "Now pick the correct equation.",
+        options: [
+            "x + 112 = 180",
+            "x + 112 = 360",
+            "2x = 112",
+        ],
+        correct: "x + 112 = 180",
+    },
+    {
+        prompt: "Choose the final validation statement.",
+        options: [
+            "Check all four angles add to 360deg and opposite angles match.",
+            "No validation is needed once x is found.",
+            "Only verify one angle and stop.",
+        ],
+        correct: "Check all four angles add to 360deg and opposite angles match.",
+    },
+];
+
+const ReasoningBuilderExercise = () => {
+    const [stepIndex, setStepIndex] = useState(0);
+    const [feedback, setFeedback] = useState("");
+    const completed = stepIndex >= REASONING_CHAIN.length;
+    const step = REASONING_CHAIN[Math.min(stepIndex, REASONING_CHAIN.length - 1)];
+
+    const handleOption = (option) => {
+        if (option === step.correct) {
+            setFeedback("Correct. Move to the next reasoning checkpoint.");
+            setStepIndex((prev) => prev + 1);
+            return;
+        }
+        setFeedback("Try again. Pick the statement that uses a valid quadrilateral property.");
+    };
+
+    return (
+        <div style={visualCardStyle}>
+            <div style={{ fontSize: 12, color: "#244f48", marginBottom: 8 }}>
+                Build a correct reasoning chain.
+            </div>
+
+            {completed ? (
+                <div style={{ ...calloutStyle, marginBottom: 8 }}>
+                    Reasoning chain complete. You can now resume the adaptive quiz confidently.
+                </div>
+            ) : (
+                <>
+                    <div style={{ marginBottom: 8, lineHeight: 1.6 }}>{step.prompt}</div>
+                    <div style={{ display: "grid", gap: 8 }}>
+                        {step.options.map((option) => (
+                            <Button
+                                key={option}
+                                size="small"
+                                variant="outlined"
+                                color="primary"
+                                onClick={() => handleOption(option)}
+                            >
+                                {option}
+                            </Button>
+                        ))}
+                    </div>
+                </>
+            )}
+
+            {feedback ? (
+                <div style={{ marginTop: 10, fontSize: 12, color: "#365f58" }}>{feedback}</div>
+            ) : null}
+
+            <div style={{ marginTop: 10, display: "flex", justifyContent: "flex-end" }}>
+                <Button
+                    size="small"
+                    variant="outlined"
+                    color="primary"
+                    onClick={() => {
+                        setStepIndex(0);
+                        setFeedback("");
+                    }}
+                >
+                    Reset Exercise
+                </Button>
+            </div>
+        </div>
     );
 };
 
@@ -85,10 +396,21 @@ const TheoryLessonStage = ({
     onBeginAssessment,
 }) => {
     const learningObjectives = lesson?.learningObjectives || {};
-    const objectiveSkills = Object.keys(learningObjectives);
-    const metaSources = Array.isArray(theoryCards?.meta?.sources)
-        ? theoryCards.meta.sources
-        : [];
+    const objectiveKeys = Object.keys(learningObjectives);
+
+    const objectiveSkills = useMemo(() => {
+        const ordered = SKILL_ORDER.filter((skillId) =>
+            objectiveKeys.includes(skillId)
+        );
+        if (ordered.length > 0) {
+            return ordered;
+        }
+        if (objectiveKeys.length > 0) {
+            return objectiveKeys;
+        }
+        return SKILL_ORDER;
+    }, [objectiveKeys]);
+
     const focusSkill =
         revisitSkill ||
         adaptiveTrace?.targetSkill ||
@@ -96,352 +418,523 @@ const TheoryLessonStage = ({
         "quad.classify";
     const focusStage =
         adaptiveTrace?.targetStage || inferStageForSkill(focusSkill);
-    const focusStageLabel =
-        STAGES.find((stage) => stage.id === focusStage)?.label ||
-        "Stage A: Concept Map";
-    const focusColumn = objectiveSkills.indexOf(focusSkill) + 1;
+    const isRevisitMode = Boolean(revisitSkill);
 
-    const [activeStage, setActiveStage] = useState(focusStage);
-    const [labSkill, setLabSkill] = useState(focusSkill);
+    const flowPages = useMemo(() => {
+        return [
+            { id: "dashboard", label: "Dashboard" },
+            ...objectiveSkills.map((skillId) => ({
+                id: `skill-${skillId}`,
+                label: SKILL_LABELS[skillId] || skillId,
+                skillId,
+            })),
+            { id: "lab", label: "Visual Lab" },
+            { id: "ready", label: "Ready Check" },
+        ];
+    }, [objectiveSkills]);
+
+    const highlightedSectionIndex = useMemo(() => {
+        if (focusStage === "lab") {
+            const labIndex = flowPages.findIndex((page) => page.id === "lab");
+            return labIndex >= 0 ? labIndex : 0;
+        }
+
+        const bySkill = flowPages.findIndex((page) => page.skillId === focusSkill);
+        if (bySkill >= 0) {
+            return bySkill;
+        }
+
+        return 0;
+    }, [flowPages, focusSkill, focusStage]);
+
+    const firstSectionIndex = useMemo(() => {
+        const index = flowPages.findIndex((page) => Boolean(page.skillId));
+        return index >= 0 ? index : 0;
+    }, [flowPages]);
+
+    const resumePageId = useMemo(() => {
+        return readTheoryResumePage(lesson?.id);
+    }, [lesson?.id]);
+
+    const resumePageIndex = useMemo(() => {
+        const storedIndex = flowPages.findIndex((page) => page.id === resumePageId);
+        if (storedIndex >= 0) {
+            return storedIndex;
+        }
+        return firstSectionIndex;
+    }, [flowPages, resumePageId, firstSectionIndex]);
+
+    const hasSavedSection = useMemo(() => {
+        return flowPages.some((page) => page.id === resumePageId);
+    }, [flowPages, resumePageId]);
+
+    const [pageIndex, setPageIndex] = useState(
+        isRevisitMode ? 0 : Math.max(0, resumePageIndex)
+    );
 
     useEffect(() => {
-        setActiveStage(focusStage);
-        setLabSkill(focusSkill);
-    }, [focusSkill, focusStage]);
+        if (isRevisitMode) {
+            setPageIndex(0);
+            return;
+        }
+        setPageIndex(Math.max(0, resumePageIndex));
+    }, [isRevisitMode, resumePageIndex, lesson?.id]);
 
-    return (
-        <div style={{ padding: "16px 20px" }}>
-            <Card style={{ marginBottom: 12 }}>
+    const activePage = flowPages[pageIndex] || flowPages[0];
+    const totalPages = flowPages.length;
+    const hasPrevious = pageIndex > 0;
+    const hasNext = pageIndex < totalPages - 1;
+    const recommendedStageLabel = STAGE_LABELS[focusStage] || "Focused review";
+
+    useEffect(() => {
+        const activePageId = flowPages[pageIndex]?.id;
+        if (!activePageId || activePageId === "dashboard") {
+            return;
+        }
+        writeTheoryResumePage(lesson?.id, activePageId);
+    }, [flowPages, pageIndex, lesson?.id]);
+
+    const renderSkillExercise = (skillId) => {
+        if (skillId === "quad.classify") {
+            return <ClassificationStretchExercise />;
+        }
+        if (skillId === "quad.properties") {
+            return <PropertiesAngleExercise />;
+        }
+        return <ReasoningBuilderExercise />;
+    };
+
+    const activeTheoryCard = useMemo(() => {
+        const skillId = activePage?.skillId;
+        if (!skillId) {
+            return null;
+        }
+        return theoryCards?.[skillId] || fallbackTheoryCard(skillId);
+    }, [activePage]);
+
+    const renderSkillPage = (skillId) => {
+        const card = activeTheoryCard || fallbackTheoryCard(skillId);
+
+        return (
+            <Card style={{ borderRadius: 18, marginBottom: 12 }}>
                 <CardContent>
-                    <h2 style={{ marginTop: 0, marginBottom: 8 }}>Stage 1: Theory</h2>
-                    <p style={{ marginTop: 0, marginBottom: 8 }}>
-                        Learn first. There are no questions in this stage.
+                    <div style={{ fontSize: 12, color: "#4b7a72", marginBottom: 6 }}>
+                        {SKILL_LABELS[skillId] || skillId}
+                    </div>
+                    <h3 style={{ marginTop: 0, marginBottom: 8, color: "#153a34" }}>
+                        {card.title}
+                    </h3>
+                    <p style={{ marginTop: 0, lineHeight: 1.65, color: "#2d5a53" }}>
+                        {card.summary}
                     </p>
+
+                    <div style={sectionTitleStyle}>Visual Walkthrough</div>
+                    <div
+                        style={{
+                            display: "grid",
+                            gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+                            gap: 10,
+                            marginBottom: 10,
+                        }}
+                    >
+                        <div style={visualCardStyle}>
+                            <div style={{ fontSize: 11, textTransform: "uppercase", color: "#4f7772", letterSpacing: "0.06em" }}>
+                                Concept Diagram
+                            </div>
+                            {renderSkillVisualization(skillId)}
+                            <div style={visualCaptionStyle}>
+                                See the relationships before reading formal definitions.
+                            </div>
+                        </div>
+                        <div style={{ ...visualCardStyle, animation: "qqPulse 2.2s ease-in-out infinite" }}>
+                            <div style={{ fontSize: 11, textTransform: "uppercase", color: "#4f7772", letterSpacing: "0.06em" }}>
+                                Animated Insight
+                            </div>
+                            <div
+                                style={{
+                                    marginTop: 10,
+                                    borderRadius: 10,
+                                    border: "1px dashed rgba(22,124,103,0.35)",
+                                    background: "rgba(240,255,250,0.85)",
+                                    padding: "12px 10px",
+                                    minHeight: 92,
+                                    display: "flex",
+                                    alignItems: "center",
+                                    color: "#214a43",
+                                    lineHeight: 1.6,
+                                }}
+                            >
+                                {getAnimationPrompt(skillId)}
+                            </div>
+                            <div style={visualCaptionStyle}>
+                                Use this with the mini visual lab below for faster intuition.
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style={sectionTitleStyle}>Section Exercise</div>
+                    <div style={{ marginBottom: 12 }}>
+                        {renderSkillExercise(skillId)}
+                    </div>
+
+                    {Array.isArray(card.keyPoints) && card.keyPoints.length > 0 ? (
+                        <>
+                            <div style={sectionTitleStyle}>Core Points</div>
+                            <ul style={{ marginTop: 0, paddingLeft: 18, lineHeight: 1.7 }}>
+                                {card.keyPoints.map((point) => (
+                                    <li key={point}>{point}</li>
+                                ))}
+                            </ul>
+                        </>
+                    ) : null}
+
+                    {Array.isArray(card.decisionTree) && card.decisionTree.length > 0 ? (
+                        <>
+                            <div style={sectionTitleStyle}>Decision Path</div>
+                            <ol style={{ marginTop: 0, paddingLeft: 18, lineHeight: 1.7 }}>
+                                {card.decisionTree.map((step) => (
+                                    <li key={step}>{step}</li>
+                                ))}
+                            </ol>
+                        </>
+                    ) : null}
+
+                    {Array.isArray(card.deepDive) && card.deepDive.length > 0 ? (
+                        <>
+                            <div style={sectionTitleStyle}>Deep Dive</div>
+                            {card.deepDive.map((paragraph) => (
+                                <p key={paragraph} style={{ marginTop: 0, marginBottom: 8, lineHeight: 1.65 }}>
+                                    {paragraph}
+                                </p>
+                            ))}
+                        </>
+                    ) : null}
+
+                    {card.workedExample ? (
+                        <>
+                            <div style={sectionTitleStyle}>Worked Example</div>
+                            <div style={{ marginBottom: 6 }}>
+                                <strong>Prompt:</strong> {card.workedExample.prompt}
+                            </div>
+                            <ol style={{ marginTop: 0, paddingLeft: 18, lineHeight: 1.6 }}>
+                                {(card.workedExample.steps || []).map((step) => (
+                                    <li key={step}>{step}</li>
+                                ))}
+                            </ol>
+                            <div>
+                                <strong>Answer:</strong> {card.workedExample.answer}
+                            </div>
+                        </>
+                    ) : null}
+
+                    {Array.isArray(card.commonErrors) && card.commonErrors.length > 0 ? (
+                        <>
+                            <div style={sectionTitleStyle}>Common Mistakes</div>
+                            <ul style={{ marginTop: 0, paddingLeft: 18, lineHeight: 1.7 }}>
+                                {card.commonErrors.map((mistake) => (
+                                    <li key={mistake}>{mistake}</li>
+                                ))}
+                            </ul>
+                        </>
+                    ) : null}
+
+                    {Array.isArray(card.propertyTable) && card.propertyTable.length > 0 ? (
+                        <>
+                            <div style={sectionTitleStyle}>Property Table</div>
+                            <div style={{ overflowX: "auto" }}>
+                                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+                                    <thead>
+                                        <tr>
+                                            <th style={{ textAlign: "left", borderBottom: "1px solid #c9ddd8", padding: "5px 6px" }}>Shape</th>
+                                            <th style={{ textAlign: "left", borderBottom: "1px solid #c9ddd8", padding: "5px 6px" }}>Parallel Sides</th>
+                                            <th style={{ textAlign: "left", borderBottom: "1px solid #c9ddd8", padding: "5px 6px" }}>Side Rule</th>
+                                            <th style={{ textAlign: "left", borderBottom: "1px solid #c9ddd8", padding: "5px 6px" }}>Angle Rule</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {card.propertyTable.map((row) => (
+                                            <tr key={row.shape}>
+                                                <td style={{ borderBottom: "1px solid #dfebe8", padding: "5px 6px" }}>{row.shape}</td>
+                                                <td style={{ borderBottom: "1px solid #dfebe8", padding: "5px 6px" }}>{row.parallelSides}</td>
+                                                <td style={{ borderBottom: "1px solid #dfebe8", padding: "5px 6px" }}>{row.sideRule}</td>
+                                                <td style={{ borderBottom: "1px solid #dfebe8", padding: "5px 6px" }}>{row.angleRule}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </>
+                    ) : null}
+
+                    <div style={{ ...calloutStyle, marginTop: 12 }}>
+                        <strong>Quick Check:</strong> {card.quickCheck}
+                    </div>
+
+                    {isRevisitMode && skillId === focusSkill ? (
+                        <div style={{ marginTop: 10, display: "flex", justifyContent: "flex-end" }}>
+                            <Button
+                                variant="contained"
+                                color="primary"
+                                onClick={onBeginAssessment}
+                            >
+                                Resume Adaptive Quiz
+                            </Button>
+                        </div>
+                    ) : null}
+                </CardContent>
+            </Card>
+        );
+    };
+
+    const renderDashboardPage = () => {
+        return (
+            <Card style={{ borderRadius: 18, marginBottom: 12 }}>
+                <CardContent>
+                    <h3 style={{ marginTop: 0, marginBottom: 8, color: "#153a34" }}>
+                        Chapter Dashboard
+                    </h3>
+                    <p style={{ marginTop: 0, marginBottom: 10, lineHeight: 1.65, color: "#2d5a53" }}>
+                        This flow is split into focused pages. Move with Previous and Next so each section gets attention.
+                    </p>
+
+                    <div style={{ ...calloutStyle, background: "rgba(235, 252, 246, 0.86)" }}>
+                        <strong>Adaptive recommendation:</strong> {SKILL_LABELS[focusSkill] || focusSkill}
+                        {` - ${recommendedStageLabel}`}
+                    </div>
+
                     {revisitSkill ? (
-                        <div
-                            style={{
-                                marginBottom: 8,
-                                background: "#fff7ed",
-                                border: "1px solid #fdba74",
-                                borderRadius: 8,
-                                padding: 10,
-                            }}
-                        >
-                            Recommended revisit: {SKILL_LABELS[revisitSkill] || revisitSkill}. Review this section, then continue.
+                        <div style={{ ...calloutStyle, background: "rgba(255, 247, 237, 0.92)", color: "#7c2d12" }}>
+                            Revisit requested for {SKILL_LABELS[revisitSkill] || revisitSkill}.
                         </div>
                     ) : null}
-                    {adaptiveTrace?.targetSkill ? (
-                        <div
-                            style={{
-                                marginBottom: 8,
-                                background: "#eff6ff",
-                                border: "1px solid #93c5fd",
-                                borderRadius: 8,
-                                padding: 10,
-                            }}
-                        >
-                            Adaptive focus right now: {SKILL_LABELS[adaptiveTrace.targetSkill] || adaptiveTrace.targetSkill}.
-                        </div>
-                    ) : null}
-                    {focusSkill ? (
-                        <div
-                            style={{
-                                marginBottom: 8,
-                                background: "#fff7ed",
-                                border: "1px solid #fdba74",
-                                borderRadius: 8,
-                                padding: 10,
-                                color: "#7c2d12",
-                                fontWeight: 600,
-                            }}
-                        >
-                            Recommended deep focus: {focusStageLabel}
-                            {focusColumn > 0 ? ` | Column ${focusColumn}` : ""}
-                            {` | ${SKILL_LABELS[focusSkill] || focusSkill}`}
-                        </div>
-                    ) : null}
+
                     {interventionMessage ? (
-                        <div
-                            style={{
-                                marginBottom: 8,
-                                background: "#fff7ed",
-                                border: "1px solid #fb923c",
-                                borderRadius: 8,
-                                padding: 10,
-                                color: "#7c2d12",
-                                fontWeight: 600,
-                            }}
-                        >
+                        <div style={{ ...calloutStyle, background: "rgba(255, 247, 237, 0.92)", color: "#7c2d12" }}>
                             {interventionMessage}
                         </div>
                     ) : null}
-                    {metaSources.length > 0 ? (
-                        <div
-                            style={{
-                                marginTop: 10,
-                                fontSize: 12,
-                                color: "#334155",
-                            }}
-                        >
-                            Source-backed theory used in this stage:
-                            {metaSources.map((source) => (
-                                <div key={source.url}>
-                                    <a href={source.url} target="_blank" rel="noreferrer">
-                                        {source.label}
-                                    </a>
-                                </div>
-                            ))}
-                        </div>
-                    ) : null}
-                </CardContent>
-            </Card>
 
-            <Card style={{ marginBottom: 12 }}>
-                <CardContent>
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-                        {STAGES.map((stage) => (
-                            <Button
-                                key={stage.id}
-                                variant={activeStage === stage.id ? "contained" : "outlined"}
-                                color="primary"
-                                size="small"
-                                onClick={() => setActiveStage(stage.id)}
-                                style={
-                                    stage.id === focusStage
-                                        ? { boxShadow: "0 0 0 2px rgba(249, 115, 22, 0.35)" }
-                                        : undefined
-                                }
+                    <div style={{ marginTop: 12, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 10 }}>
+                        {flowPages.map((page, index) => (
+                            <div
+                                key={page.id}
+                                style={{
+                                    borderRadius: 12,
+                                    border:
+                                        index === highlightedSectionIndex
+                                            ? "1px solid rgba(249,115,22,0.48)"
+                                            : "1px solid rgba(22,124,103,0.18)",
+                                    background:
+                                        index === highlightedSectionIndex
+                                            ? "rgba(255,247,237,0.9)"
+                                            : "rgba(255,255,255,0.7)",
+                                    padding: "10px 12px",
+                                }}
                             >
-                                {stage.label}
-                            </Button>
+                                <div style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.08em", color: "#577773" }}>
+                                    Step {index + 1}
+                                </div>
+                                <div style={{ marginTop: 4, fontWeight: 700, color: "#143f38" }}>
+                                    {page.label}
+                                </div>
+                            </div>
                         ))}
                     </div>
-                    <div style={{ fontSize: 12, color: "#475569", marginTop: 8 }}>
-                        {activeStage === "overview"
-                            ? "Build conceptual clarity and classification logic first."
-                            : activeStage === "lab"
-                            ? "Interact with properties in real time: angle, side orientation, and length variation."
-                            : "Consolidate with worked reasoning and error recovery strategies."}
-                    </div>
-                    {activeStage !== focusStage ? (
-                        <div style={{ marginTop: 8 }}>
+
+                    <div style={{ marginTop: 12, display: "flex", flexWrap: "wrap", gap: 8 }}>
+                        {highlightedSectionIndex !== 0 ? (
                             <Button
                                 size="small"
                                 variant="outlined"
-                                onClick={() => setActiveStage(focusStage)}
+                                color="primary"
+                                onClick={() => setPageIndex(highlightedSectionIndex)}
                             >
-                                Jump to recommended stage and column
+                                Go to highlighted revisit section
                             </Button>
-                        </div>
-                    ) : null}
+                        ) : null}
+
+                        <Button
+                            size="small"
+                            variant="outlined"
+                            color="primary"
+                            onClick={() => setPageIndex(resumePageIndex)}
+                        >
+                            {hasSavedSection
+                                ? "Jump to where you left off"
+                                : "Start from first section"}
+                        </Button>
+
+                        {isRevisitMode ? (
+                            <Button
+                                size="small"
+                                variant="contained"
+                                color="primary"
+                                onClick={onBeginAssessment}
+                            >
+                                Resume Adaptive Quiz
+                            </Button>
+                        ) : null}
+                    </div>
                 </CardContent>
             </Card>
+        );
+    };
 
-            {activeStage === "lab" ? (
-                <Card style={{ marginBottom: 12 }}>
-                    <CardContent>
-                        <h3 style={{ marginTop: 0, marginBottom: 8 }}>
-                            Interactive Theory Lab
-                        </h3>
-                        <div style={{ fontSize: 13, color: "#334155", marginBottom: 10 }}>
-                            Explore one focus skill at a time and observe how geometric properties change.
+    const renderLabPage = () => {
+        return (
+            <Card style={{ borderRadius: 18, marginBottom: 12 }}>
+                <CardContent>
+                    <h3 style={{ marginTop: 0, marginBottom: 8, color: "#153a34" }}>
+                        Visual Lab
+                    </h3>
+                    <p style={{ marginTop: 0, lineHeight: 1.65, color: "#2d5a53" }}>
+                        Explore one skill at a time. Change angle, side orientation, and length to see the classification and properties shift.
+                    </p>
+
+                    <div style={{ ...calloutStyle, marginTop: 12, marginBottom: 12 }}>
+                        Adaptive focus is pinned automatically to <strong>{SKILL_LABELS[focusSkill] || focusSkill}</strong> so you can concentrate on the right subtopic.
+                    </div>
+
+                    <QuadrilateralPropertyLab skillId={focusSkill} />
+                </CardContent>
+            </Card>
+        );
+    };
+
+    const renderReadyPage = () => {
+        const checks = objectiveSkills.map((skillId) => {
+            const card = theoryCards?.[skillId] || fallbackTheoryCard(skillId);
+            return {
+                skillId,
+                quickCheck: card.quickCheck,
+            };
+        });
+
+        return (
+            <Card style={{ borderRadius: 18, marginBottom: 12 }}>
+                <CardContent>
+                    <h3 style={{ marginTop: 0, marginBottom: 8, color: "#153a34" }}>
+                        Ready Check
+                    </h3>
+                    <p style={{ marginTop: 0, lineHeight: 1.65, color: "#2d5a53" }}>
+                        Before you continue, quickly verify these three areas.
+                    </p>
+
+                    {checks.map((item) => (
+                        <div key={item.skillId} style={{ ...calloutStyle, marginBottom: 10 }}>
+                            <div style={{ fontWeight: 700, marginBottom: 4 }}>
+                                {SKILL_LABELS[item.skillId] || item.skillId}
+                            </div>
+                            <div>{item.quickCheck}</div>
                         </div>
-                        <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 10 }}>
-                            {objectiveSkills.map((skillId) => (
+                    ))}
+
+                    <Button
+                        variant="contained"
+                        color="primary"
+                        onClick={onBeginAssessment}
+                    >
+                        Start Stage 2: Adaptive Questions
+                    </Button>
+                </CardContent>
+            </Card>
+        );
+    };
+
+    let pageContent = null;
+    if (activePage?.id === "dashboard") {
+        pageContent = renderDashboardPage();
+    } else if (activePage?.id === "lab") {
+        pageContent = renderLabPage();
+    } else if (activePage?.id === "ready") {
+        pageContent = renderReadyPage();
+    } else if (activePage?.skillId) {
+        pageContent = renderSkillPage(activePage.skillId);
+    }
+
+    return (
+        <div style={{ padding: "8px 20px 20px", maxWidth: 1160, margin: "0 auto" }}>
+            <Card style={{ borderRadius: 18, marginBottom: 12 }}>
+                <CardContent>
+                    <div
+                        style={{
+                            display: "flex",
+                            flexWrap: "wrap",
+                            alignItems: "center",
+                            justifyContent: "space-between",
+                            gap: 10,
+                        }}
+                    >
+                        <div>
+                            <div style={{ fontSize: 12, letterSpacing: "0.08em", textTransform: "uppercase", color: "#4d7771" }}>
+                                Structured Theory Flow
+                            </div>
+                            <h2 style={{ marginTop: 6, marginBottom: 0, color: "#123a33" }}>
+                                Page {pageIndex + 1} of {totalPages}: {activePage?.label}
+                            </h2>
+                        </div>
+                        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                            {flowPages.map((page, index) => (
                                 <Button
-                                    key={skillId}
+                                    key={page.id}
                                     size="small"
-                                    variant={labSkill === skillId ? "contained" : "outlined"}
+                                    variant={index === pageIndex ? "contained" : "outlined"}
                                     color="primary"
-                                    onClick={() => setLabSkill(skillId)}
+                                    onClick={() => setPageIndex(index)}
                                 >
-                                    {SKILL_LABELS[skillId] || skillId}
+                                    {index + 1}
                                 </Button>
                             ))}
                         </div>
-                        <QuadrilateralPropertyLab skillId={labSkill} />
-                    </CardContent>
-                </Card>
-            ) : null}
+                    </div>
+                </CardContent>
+            </Card>
 
-            <Grid container spacing={2}>
-                {objectiveSkills.map((skillId) => {
-                    const card = theoryCards[skillId] || {
-                        title: SKILL_LABELS[skillId] || skillId,
-                        summary: "Review this concept before attempting questions.",
-                        keyPoints: [],
-                        quickCheck: "Explain the rule in your own words.",
-                    };
-                    const isPinnedTarget =
-                        skillId === focusSkill && activeStage === focusStage;
+            {pageContent}
 
-                    return (
-                        <Grid item xs={12} md={4} key={skillId}>
-                            <Card
-                                style={{
-                                    height: "100%",
-                                    border: isPinnedTarget ? "2px solid #f97316" : "1px solid #e2e8f0",
-                                    boxShadow: isPinnedTarget ? "0 0 0 2px rgba(249, 115, 22, 0.15)" : "none",
-                                }}
+            <Card style={{ borderRadius: 18 }}>
+                <CardContent>
+                    <div style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
+                        <Button
+                            variant="outlined"
+                            color="primary"
+                            disabled={!hasPrevious}
+                            onClick={() => setPageIndex((current) => Math.max(0, current - 1))}
+                        >
+                            Previous
+                        </Button>
+
+                        {isRevisitMode ? (
+                            <Button
+                                variant="outlined"
+                                color="primary"
+                                onClick={onBeginAssessment}
                             >
-                                <CardContent>
-                                    <div style={{ fontSize: 12, color: "#475569", marginBottom: 6 }}>
-                                        {SKILL_LABELS[skillId] || skillId}
-                                    </div>
-                                    <h3 style={{ marginTop: 0, marginBottom: 8 }}>{card.title}</h3>
-                                    <div style={{ marginBottom: 10 }}>{skillVisual(skillId)}</div>
-                                    <p style={{ marginTop: 0 }}>{card.summary}</p>
+                                Resume Adaptive Quiz
+                            </Button>
+                        ) : null}
 
-                                    {activeStage !== "lab" ? (
-                                        <>
-                                            <div style={sectionTitleStyle}>Core Points</div>
-                                            <ul style={{ marginTop: 0, paddingLeft: 18 }}>
-                                                {(card.keyPoints || []).map((point) => (
-                                                    <li key={point}>{point}</li>
-                                                ))}
-                                            </ul>
-                                        </>
-                                    ) : null}
-
-                                    {activeStage === "overview" && Array.isArray(card.decisionTree) && card.decisionTree.length > 0 ? (
-                                        <>
-                                            <div style={sectionTitleStyle}>Decision Path</div>
-                                            <ol style={{ marginTop: 0, paddingLeft: 18 }}>
-                                                {card.decisionTree.map((rule) => (
-                                                    <li key={rule}>{rule}</li>
-                                                ))}
-                                            </ol>
-                                        </>
-                                    ) : null}
-
-                                    {activeStage === "lab" ? (
-                                        <>
-                                            <div style={sectionTitleStyle}>Lab Focus</div>
-                                            <ul style={{ marginTop: 0, paddingLeft: 18 }}>
-                                                {(card.revisitSections || card.keyPoints || []).slice(0, 3).map((entry) => (
-                                                    <li key={entry}>{entry}</li>
-                                                ))}
-                                            </ul>
-                                        </>
-                                    ) : null}
-
-                                    {activeStage === "practice" && Array.isArray(card.deepDive) && card.deepDive.length > 0 ? (
-                                        <>
-                                            <div style={sectionTitleStyle}>Detailed Explanation</div>
-                                            {card.deepDive.map((paragraph) => (
-                                                <p key={paragraph} style={{ marginTop: 0, marginBottom: 8 }}>
-                                                    {paragraph}
-                                                </p>
-                                            ))}
-                                        </>
-                                    ) : null}
-
-                                    {activeStage === "practice" && Array.isArray(card.propertyTable) && card.propertyTable.length > 0 ? (
-                                        <>
-                                            <div style={sectionTitleStyle}>Property Table</div>
-                                            <div style={{ overflowX: "auto" }}>
-                                                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
-                                                    <thead>
-                                                        <tr>
-                                                            <th style={{ textAlign: "left", borderBottom: "1px solid #cbd5e1", padding: "4px 6px" }}>Shape</th>
-                                                            <th style={{ textAlign: "left", borderBottom: "1px solid #cbd5e1", padding: "4px 6px" }}>Parallel Sides</th>
-                                                            <th style={{ textAlign: "left", borderBottom: "1px solid #cbd5e1", padding: "4px 6px" }}>Side Rule</th>
-                                                            <th style={{ textAlign: "left", borderBottom: "1px solid #cbd5e1", padding: "4px 6px" }}>Angle Rule</th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody>
-                                                        {card.propertyTable.map((row) => (
-                                                            <tr key={row.shape}>
-                                                                <td style={{ borderBottom: "1px solid #e2e8f0", padding: "4px 6px" }}>{row.shape}</td>
-                                                                <td style={{ borderBottom: "1px solid #e2e8f0", padding: "4px 6px" }}>{row.parallelSides}</td>
-                                                                <td style={{ borderBottom: "1px solid #e2e8f0", padding: "4px 6px" }}>{row.sideRule}</td>
-                                                                <td style={{ borderBottom: "1px solid #e2e8f0", padding: "4px 6px" }}>{row.angleRule}</td>
-                                                            </tr>
-                                                        ))}
-                                                    </tbody>
-                                                </table>
-                                            </div>
-                                        </>
-                                    ) : null}
-
-                                    {activeStage === "practice" && card.workedExample ? (
-                                        <>
-                                            <div style={sectionTitleStyle}>Worked Example</div>
-                                            <div style={{ marginBottom: 6 }}>
-                                                <strong>Prompt:</strong> {card.workedExample.prompt}
-                                            </div>
-                                            <ol style={{ marginTop: 0, paddingLeft: 18 }}>
-                                                {(card.workedExample.steps || []).map((step) => (
-                                                    <li key={step}>{step}</li>
-                                                ))}
-                                            </ol>
-                                            <div>
-                                                <strong>Answer:</strong> {card.workedExample.answer}
-                                            </div>
-                                        </>
-                                    ) : null}
-
-                                    {activeStage === "practice" && Array.isArray(card.commonErrors) && card.commonErrors.length > 0 ? (
-                                        <>
-                                            <div style={sectionTitleStyle}>Common Mistakes</div>
-                                            <ul style={{ marginTop: 0, paddingLeft: 18 }}>
-                                                {card.commonErrors.map((mistake) => (
-                                                    <li key={mistake}>{mistake}</li>
-                                                ))}
-                                            </ul>
-                                        </>
-                                    ) : null}
-
-                                    {activeStage === "practice" && Array.isArray(card.revisitSections) && card.revisitSections.length > 0 ? (
-                                        <>
-                                            <div style={sectionTitleStyle}>Revisit Sections</div>
-                                            <ul style={{ marginTop: 0, paddingLeft: 18 }}>
-                                                {card.revisitSections.map((item) => (
-                                                    <li key={item}>{item}</li>
-                                                ))}
-                                            </ul>
-                                        </>
-                                    ) : null}
-
-                                    {activeStage === "practice" && Array.isArray(card.recoveryPlan) && card.recoveryPlan.length > 0 ? (
-                                        <>
-                                            <div style={sectionTitleStyle}>Recovery Plan</div>
-                                            <ol style={{ marginTop: 0, paddingLeft: 18 }}>
-                                                {card.recoveryPlan.map((step) => (
-                                                    <li key={step}>{step}</li>
-                                                ))}
-                                            </ol>
-                                        </>
-                                    ) : null}
-
-                                    <div style={{ marginTop: 8 }}>
-                                        Quick check: {card.quickCheck}
-                                    </div>
-
-                                    {activeStage === "practice" && Array.isArray(card.sourceLinks) && card.sourceLinks.length > 0 ? (
-                                        <div style={{ marginTop: 10, fontSize: 12 }}>
-                                            <strong>Learn more:</strong>
-                                            {card.sourceLinks.map((source) => (
-                                                <div key={source.url}>
-                                                    <a href={source.url} target="_blank" rel="noreferrer">
-                                                        {source.label}
-                                                    </a>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    ) : null}
-                                </CardContent>
-                            </Card>
-                        </Grid>
-                    );
-                })}
-            </Grid>
-
-            <div style={{ marginTop: 14 }}>
-                <Button variant="contained" color="primary" onClick={onBeginAssessment}>
-                    Start Stage 2: Adaptive Questions
-                </Button>
-            </div>
+                        {activePage?.id === "ready" ? (
+                            <Button variant="contained" color="primary" onClick={onBeginAssessment}>
+                                Start Stage 2: Adaptive Questions
+                            </Button>
+                        ) : (
+                            <Button
+                                variant="contained"
+                                color="primary"
+                                disabled={!hasNext}
+                                onClick={() =>
+                                    setPageIndex((current) =>
+                                        Math.min(totalPages - 1, current + 1)
+                                    )
+                                }
+                            >
+                                Next
+                            </Button>
+                        )}
+                    </div>
+                </CardContent>
+            </Card>
         </div>
     );
 };

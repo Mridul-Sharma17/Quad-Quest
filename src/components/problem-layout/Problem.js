@@ -248,12 +248,18 @@ class Problem extends React.Component {
         const { stepStates, firstAttempts, incorrectStepCounts } = this.state;
         const { lesson, problem } = this.props;
         const normalizedKcArray = cleanArray(kcArray || []);
+        const attemptSource = String(attemptMeta?.source || "submit").toLowerCase();
+        const isSubmissionAttempt = attemptSource === "submit";
         const stepId = String(problem?.steps?.[cardIndex]?.id || "");
         const interventionConfig = interventionMap[stepId] || null;
 
         console.debug(`answer made and is correct: ${isCorrect}`);
 
         if (stepStates[cardIndex] === true) {
+            return;
+        }
+
+        if (!isSubmissionAttempt) {
             return;
         }
 
@@ -632,6 +638,64 @@ class Problem extends React.Component {
         return [oerLink, oerName, licenseLink, licenseName];
     };
 
+    normalizeProblemText = (value) => {
+        return String(value || "")
+            .toLowerCase()
+            .replace(/<[^>]*>/g, " ")
+            .replace(/[^a-z0-9\s]/g, " ")
+            .replace(/\s+/g, " ")
+            .trim();
+    };
+
+    flattenStepAnswers = (stepAnswer) => {
+        if (Array.isArray(stepAnswer)) {
+            return stepAnswer;
+        }
+        if (stepAnswer == null) {
+            return [];
+        }
+        return [stepAnswer];
+    };
+
+    getDisplayProblemTitle = (problem) => {
+        const rawTitle = String(problem?.title || "").trim();
+        if (!rawTitle) {
+            return "Quadrilateral Challenge";
+        }
+
+        const normalizedTitle = this.normalizeProblemText(rawTitle);
+        const hasSpoiler = (problem?.steps || []).some((step) => {
+            if (step?.problemType !== "MultipleChoice") {
+                return false;
+            }
+
+            const choices = Array.isArray(step?.choices)
+                ? step.choices
+                      .map((item) => this.normalizeProblemText(item))
+                      .filter(Boolean)
+                : [];
+            if (choices.length === 0) {
+                return false;
+            }
+
+            const answers = this.flattenStepAnswers(step?.stepAnswer)
+                .map((answer) => this.normalizeProblemText(answer))
+                .filter((answer) => answer.length >= 3);
+
+            return answers.some(
+                (answer) =>
+                    choices.includes(answer) &&
+                    normalizedTitle.includes(answer)
+            );
+        });
+
+        if (hasSpoiler) {
+            return "Identify the correct quadrilateral";
+        }
+
+        return rawTitle;
+    };
+
     render() {
         const { translate } = this.props;
         const { classes, problem, seed } = this.props;
@@ -657,6 +721,7 @@ class Problem extends React.Component {
         if (problem == null) {
             return <div></div>;
         }
+        const displayProblemTitle = this.getDisplayProblemTitle(problem);
 
         return (
             <>
@@ -670,7 +735,7 @@ class Problem extends React.Component {
                             >
                                 <h1 className={classes.problemHeader}>
                                     {renderText(
-                                        problem.title,
+                                        displayProblemTitle,
                                         problem.id,
                                         chooseVariables(
                                             problem.variabilization,
@@ -905,7 +970,7 @@ class Problem extends React.Component {
                         <div style={{ marginLeft: 20, fontSize: 12 }}>
                             {licenseName !== "" && licenseLink !== "" ? (
                                 <div>
-                                    "{problem.title}" {translate('problem.Derivative')}&nbsp;
+                                    "{displayProblemTitle}" {translate('problem.Derivative')}&nbsp;
                                     <a
                                         href={oerLink}
                                         target="_blank"
@@ -926,7 +991,7 @@ class Problem extends React.Component {
                                 <div>
                                 {oerName !== "" && oerLink !== "" ? (
                                 <div>
-                                    "{problem.title}" {translate('problem.Derivative')}&nbsp;
+                                    "{displayProblemTitle}" {translate('problem.Derivative')}&nbsp;
                                     <a
                                         href={oerLink}
                                         target="_blank"

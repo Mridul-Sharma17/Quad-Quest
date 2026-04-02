@@ -8,7 +8,7 @@ import {
     AB_TEST_MODE
 } from "./config/config.js";
 
-import { HashRouter as Router, Route, Switch } from "react-router-dom";
+import { HashRouter as Router, Route, Switch, Redirect } from "react-router-dom";
 import NotFound from "@components/NotFound.js";
 
 import {
@@ -68,6 +68,7 @@ const queryParamToContext = {
 const queryParamsToKeep = ["use_expanded_view", "to", "do_not_restore", "locale"];
 
 let treatmentMapping;
+const QUADRILATERAL_LESSON_ID = "class8-quad-lesson-1";
 
 if (!AB_TEST_MODE) {
     treatmentMapping = {
@@ -337,47 +338,27 @@ class App extends React.Component {
                                         <Route
                                             exact
                                             path="/"
-                                            render={(props) => (
-                                                <Platform
-                                                    key={Date.now()}
-                                                    saveProgress={() =>
-                                                        this.saveProgress()
-                                                    }
-                                                    loadBktProgress={
-                                                        this.loadBktProgress
-                                                    }
-                                                    removeProgress={
-                                                        this.removeProgress
-                                                    }
-                                                    {...props}
-                                                />
-                                            )}
-                                        />
-                                        <Route
-                                            path="/courses/:courseNum"
-                                            render={(props) => (
-                                                <Platform
-                                                    key={Date.now()}
-                                                    saveProgress={() =>
-                                                        this.saveProgress()
-                                                    }
-                                                    loadBktProgress={
-                                                        this.loadBktProgress
-                                                    }
-                                                    removeProgress={
-                                                        this.removeProgress
-                                                    }
-                                                    courseNum={
-                                                        props.match.params.courseNum
-                                                    }
-                                                    {...props}
+                                            render={() => (
+                                                <Redirect
+                                                    to={`/lessons/${QUADRILATERAL_LESSON_ID}`}
                                                 />
                                             )}
                                         />
                                         <Route
                                           exact
                                           path="/lessons/:lessonID/problems"
-                                            component={ViewAllProblems}
+                                            render={(props) => (
+                                                <ViewAllProblems
+                                                    {...props}
+                                                    match={{
+                                                        ...props.match,
+                                                        params: {
+                                                            ...props.match.params,
+                                                            lessonID: QUADRILATERAL_LESSON_ID,
+                                                        },
+                                                    }}
+                                                />
+                                            )}
                                            />
                                         <Route
                                         exact
@@ -394,9 +375,7 @@ class App extends React.Component {
                                                     removeProgress={
                                                         this.removeProgress
                                                     }
-                                                    lessonID={
-                                                        props.match.params.lessonID
-                                                    }
+                                                    lessonID={QUADRILATERAL_LESSON_ID}
                                                     {...props}
                                                 />
                                             )}
