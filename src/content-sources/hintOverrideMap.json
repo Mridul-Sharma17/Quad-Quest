@@ -1,0 +1,16 @@
+{
+  "qq8quad006a": {
+    "qq8quad006a-h1": "Think structurally: a quadrilateral can be split into two triangles. Use that idea to derive the total interior-angle sum."
+  },
+  "qq8quad007a": {
+    "qq8quad007a-h1": "Start from the property first: in a parallelogram, opposite angles are equal. Then match the opposite angle to the given value."
+  },
+  "qq8quad008a": {
+    "qq8quad008a-h1": "Use the adjacent-angle relation for parallelograms: adjacent interior angles add to 180 degrees.",
+    "qq8quad008a-h2": "Set up a one-line equation with the given angle and the adjacent angle adding to 180, then solve for the unknown."
+  },
+  "qq8quad010a": {
+    "qq8quad010a-h1": "Write the rectangle perimeter formula P = 2(l + b), then substitute the known values.",
+    "qq8quad010a-h2": "Rearrange the perimeter equation step by step to isolate breadth, and verify by substituting back."
+  }
+}

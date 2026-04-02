@@ -244,7 +244,7 @@ class Problem extends React.Component {
         }
     };
 
-    answerMade = (cardIndex, kcArray, isCorrect) => {
+    answerMade = (cardIndex, kcArray, isCorrect, attemptMeta = {}) => {
         const { stepStates, firstAttempts, incorrectStepCounts } = this.state;
         const { lesson, problem } = this.props;
         const normalizedKcArray = cleanArray(kcArray || []);
@@ -258,7 +258,12 @@ class Problem extends React.Component {
         }
 
         if (typeof this.props.onSkillOutcome === "function") {
-            this.props.onSkillOutcome(normalizedKcArray, isCorrect, stepId);
+            this.props.onSkillOutcome(
+                normalizedKcArray,
+                isCorrect,
+                stepId,
+                attemptMeta
+            );
         }
 
         if (stepStates[cardIndex] == null) {

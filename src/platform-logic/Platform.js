@@ -38,6 +38,9 @@ const THEORY_STAGE_LABELS = {
     practice: "Stage C: Worked Reasoning",
 };
 
+const BEHAVIOR_LONG_RESPONSE_MS = 15000;
+const BEHAVIOR_LONG_RESPONSE_STREAK_FOR_INTERVENTION = 2;
+
 let seed = Date.now().toString();
 console.log("Generated seed");
 
@@ -414,11 +417,17 @@ class Platform extends React.Component {
         this._nextProblem(this.context);
     };
 
-    recordSkillOutcome = (skillIds, isCorrect, stepId = "") => {
+    recordSkillOutcome = (skillIds, isCorrect, stepId = "", attemptMeta = {}) => {
         const normalizedSkillIds = cleanArray(skillIds || []);
         if (!Array.isArray(normalizedSkillIds) || normalizedSkillIds.length === 0) {
             return;
         }
+
+        const responseTimeMs = Math.max(
+            0,
+            Number(attemptMeta?.responseTimeMs || 0)
+        );
+        const isLongResponse = responseTimeMs >= BEHAVIOR_LONG_RESPONSE_MS;
 
         const interventionConfig =
             interventionMap[String(stepId || "").trim()] || null;
@@ -430,6 +439,8 @@ class Platform extends React.Component {
         ]);
         const defaultInterventionMessage =
             "You are making frequent mistakes like this in this subtopic, so it is better to revisit this theory resource before the next question.";
+        const defaultBehaviorInterventionMessage =
+            "You are spending more time on this topic, try this and you will feel more comfortable.";
 
         this.setState((prevState) => {
             const nextSkillDifficultyMap = {
@@ -438,6 +449,7 @@ class Platform extends React.Component {
 
             let candidateIntervention = prevState.pendingTheoryIntervention;
             const triggeredSkills = {};
+            const skillTriggerReason = {};
 
             for (const skillId of normalizedSkillIds) {
                 if (!skillId) {
@@ -448,22 +460,47 @@ class Platform extends React.Component {
                     totalAttempts: 0,
                     totalIncorrect: 0,
                     recentIncorrect: 0,
+                    responseSamples: 0,
+                    totalResponseMs: 0,
+                    longResponseCount: 0,
+                    longResponseStreak: 0,
                 };
 
                 const next = {
                     totalAttempts: prev.totalAttempts + 1,
                     totalIncorrect: prev.totalIncorrect + (isCorrect ? 0 : 1),
                     recentIncorrect: isCorrect ? 0 : prev.recentIncorrect + 1,
+                    responseSamples:
+                        prev.responseSamples + (responseTimeMs > 0 ? 1 : 0),
+                    totalResponseMs: prev.totalResponseMs + responseTimeMs,
+                    longResponseCount:
+                        prev.longResponseCount + (isLongResponse ? 1 : 0),
+                    longResponseStreak:
+                        responseTimeMs <= 0
+                            ? prev.longResponseStreak
+                            : isLongResponse
+                            ? prev.longResponseStreak + 1
+                            : 0,
                 };
 
                 nextSkillDifficultyMap[skillId] = next;
 
-                const shouldIntervene =
+                const shouldInterveneByAccuracy =
                     !isCorrect &&
                     (next.recentIncorrect >= 2 || next.totalIncorrect >= 3);
+                const shouldInterveneByBehavior =
+                    responseTimeMs > 0 &&
+                    (next.longResponseStreak >=
+                        BEHAVIOR_LONG_RESPONSE_STREAK_FOR_INTERVENTION ||
+                        next.longResponseCount >=
+                            BEHAVIOR_LONG_RESPONSE_STREAK_FOR_INTERVENTION);
 
-                if (shouldIntervene) {
+                if (shouldInterveneByAccuracy || shouldInterveneByBehavior) {
                     triggeredSkills[skillId] = next;
+                    skillTriggerReason[skillId] = {
+                        accuracy: shouldInterveneByAccuracy,
+                        behavior: shouldInterveneByBehavior,
+                    };
                 }
             }
 
@@ -473,15 +510,29 @@ class Platform extends React.Component {
 
             if (selectedSkill) {
                 const selectedStats = triggeredSkills[selectedSkill];
+                const selectedReason = skillTriggerReason[selectedSkill] || {
+                    accuracy: false,
+                    behavior: false,
+                };
+                const preferBehaviorMessage =
+                    selectedReason.behavior && !selectedReason.accuracy;
                 candidateIntervention = {
                     skill: selectedSkill,
                     recentIncorrect: selectedStats.recentIncorrect,
                     totalIncorrect: selectedStats.totalIncorrect,
                     message:
-                        interventionConfig?.interventionMessage ||
-                        defaultInterventionMessage,
+                        preferBehaviorMessage
+                            ? interventionConfig?.behaviorInterventionMessage ||
+                              defaultBehaviorInterventionMessage
+                            : interventionConfig?.interventionMessage ||
+                              defaultInterventionMessage,
                     targetStage: interventionConfig?.targetStage || null,
                     stepId: stepId || null,
+                    triggerType: preferBehaviorMessage
+                        ? "behavior"
+                        : selectedReason.accuracy && selectedReason.behavior
+                        ? "mixed"
+                        : "accuracy",
                 };
             }
 

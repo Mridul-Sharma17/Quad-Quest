@@ -35,6 +35,7 @@ import {
 import { joinList } from "../../util/formListString";
 import withTranslation from "../../util/withTranslation.js"
 import CryptoJS from "crypto-js";
+import hintOverrideMap from "../../content-sources/hintOverrideMap.json";
 
 class ProblemCard extends React.Component {
     static contextType = ThemeContext;
@@ -42,6 +43,7 @@ class ProblemCard extends React.Component {
     constructor(props, context) {
         super(props);
         //console.log("problem lesson props:", props);
+        const safeContext = context || {};
 
         this.translate = props.translate
         this.step = props.step;
@@ -57,6 +59,11 @@ class ProblemCard extends React.Component {
         this.giveStuBottomHint = props.giveStuBottomHint;
         console.log("ProblemCard - giveStuBottomHint:", this.giveStuBottomHint);
         console.log("ProblemCard - all props:", props);
+        this.useSoftBottomOutHints = String(
+            props.courseName || props.lesson?.courseName || ""
+        )
+            .toLowerCase()
+            .includes("quadrilateral");
 
         this.giveDynamicHint = props.giveDynamicHint;
         this.showHints = this.giveStuHints == null || this.giveStuHints;
@@ -74,72 +81,17 @@ class ProblemCard extends React.Component {
             "showHints",
             this.showHints,
             "hintPathway",
-            context.hintPathway
+            safeContext.hintPathway
         );
         this.hints = this.giveDynamicHint
             ? []
-            : JSON.parse(JSON.stringify(this.step.hints[context.hintPathway]));
-
-        for (let hint of this.hints) {
-            hint.dependencies = hint.dependencies.map((dependency) =>
-                this._findHintId(this.hints, dependency)
-            );
-            if (hint.subHints) {
-                for (let subHint of hint.subHints) {
-                    subHint.dependencies = subHint.dependencies.map(
-                        (dependency) =>
-                            this._findHintId(hint.subHints, dependency)
-                    );
-                }
-            }
-        }
-
-        // Bottom out hints option
-
-        console.log("Constructor - About to check bottom hints:", this.giveStuBottomHint, context.debug, context["use_expanded_view"]);
-
-        if (
-            this.giveStuBottomHint &&
-            !(context.debug && context["use_expanded_view"])
-        ) {
-            // Bottom out hints
-            this.hints.push({
-                id: this.step.id + "-h" + (this.hints.length + 1),
-                title: this.translate('hintsystem.answer'),
-                text: this.translate('hintsystem.answerIs') + this.step.stepAnswer,
-                type: "bottomOut",
-                dependencies: Array.from(Array(this.hints.length).keys()),
-            });
-            // Bottom out sub hints
-            this.hints.map((hint, i) => {
-                if (hint.type === "scaffold") {
-                    if (hint.subHints == null) {
-                        hint.subHints = [];
-                    }
-                    hint.subHints.push({
-                        id:
-                            this.step.id +
-                            "-h" +
-                            i +
-                            "-s" +
-                            (hint.subHints.length + 1),
-                        title: this.translate('hintsystem.answer'),
-                        text: this.translate('hintsystem.answerIs') + hint.hintAnswer[0],
-                        type: "bottomOut",
-                        dependencies: Array.from(
-                            Array(hint.subHints.length).keys()
-                        ),
-                    });
-                }
-                return null;
-            });
-        }
+            : this.initializeManualHints();
 
         this.state = {
             inputVal: "",
-            isCorrect: context.use_expanded_view && context.debug ? true : null,
+            isCorrect: safeContext.use_expanded_view && safeContext.debug ? true : null,
             checkMarkOpacity:
-                context.use_expanded_view && context.debug ? "100" : "0",
+                safeContext.use_expanded_view && safeContext.debug ? "100" : "0",
             displayHints: false,
             hintsFinished: new Array(this.hints.length).fill(0),
             equation: "",
@@ -152,6 +104,7 @@ class ProblemCard extends React.Component {
             // When we are currently streaming the response from ChatGPT, this variable is `true`
             isGeneratingHint: false, 
             lastAIHintHash: null,
+            attemptStartedAt: Date.now(),
         };
 
          // This is used for AI hint generation
@@ -180,6 +133,111 @@ class ProblemCard extends React.Component {
         }
         console.debug("hint not found..?", hints, "target:", targetId);
         return -1;
+    };
+
+    applyHintTextOverrides = (hints) => {
+        const stepOverrides = hintOverrideMap[this.step?.id] || {};
+        if (!stepOverrides || Object.keys(stepOverrides).length === 0) {
+            return hints;
+        }
+
+        return hints.map((hint) => {
+            const nextHint = {
+                ...hint,
+                text:
+                    typeof stepOverrides[hint.id] === "string"
+                        ? stepOverrides[hint.id]
+                        : hint.text,
+            };
+
+            if (Array.isArray(nextHint.subHints)) {
+                nextHint.subHints = nextHint.subHints.map((subHint) => ({
+                    ...subHint,
+                    text:
+                        typeof stepOverrides[subHint.id] === "string"
+                            ? stepOverrides[subHint.id]
+                            : subHint.text,
+                }));
+            }
+
+            return nextHint;
+        });
+    };
+
+    initializeManualHints = () => {
+        const activeContext = this.context || {};
+        const stepHints = this.step?.hints || {};
+        const hintedPathway = activeContext.hintPathway;
+
+        let sourceHints = [];
+        if (hintedPathway && Array.isArray(stepHints[hintedPathway])) {
+            sourceHints = stepHints[hintedPathway];
+        } else if (Array.isArray(stepHints.DefaultPathway)) {
+            sourceHints = stepHints.DefaultPathway;
+        } else {
+            sourceHints =
+                Object.values(stepHints).find((pathway) => Array.isArray(pathway)) || [];
+        }
+
+        let hints = JSON.parse(JSON.stringify(sourceHints));
+        hints = this.applyHintTextOverrides(hints);
+
+        for (let hint of hints) {
+            hint.dependencies = (hint.dependencies || []).map((dependency) =>
+                this._findHintId(hints, dependency)
+            );
+            if (hint.subHints) {
+                for (let subHint of hint.subHints) {
+                    subHint.dependencies = (subHint.dependencies || []).map(
+                        (dependency) =>
+                            this._findHintId(hint.subHints, dependency)
+                    );
+                }
+            }
+        }
+
+        if (
+            this.giveStuBottomHint &&
+            !(activeContext.debug && activeContext["use_expanded_view"])
+        ) {
+            hints.push({
+                id: this.step.id + "-h" + (hints.length + 1),
+                title: this.translate("hintsystem.answer"),
+                text: this.useSoftBottomOutHints
+                    ? "Use the previous hints to write Given -> Rule -> Equation, then solve carefully."
+                    : this.translate("hintsystem.answerIs") + this.step.stepAnswer,
+                type: "bottomOut",
+                dependencies: Array.from(Array(hints.length).keys()),
+            });
+
+            hints.map((hint, i) => {
+                if (hint.type === "scaffold") {
+                    if (hint.subHints == null) {
+                        hint.subHints = [];
+                    }
+                    hint.subHints.push({
+                        id:
+                            this.step.id +
+                            "-h" +
+                            i +
+                            "-s" +
+                            (hint.subHints.length + 1),
+                        title: this.translate("hintsystem.answer"),
+                        text: this.useSoftBottomOutHints
+                            ? "Apply the rule from earlier hints, solve the unknown, and verify once."
+                            : this.translate("hintsystem.answerIs") +
+                              hint.hintAnswer[0],
+                        type: "bottomOut",
+                        dependencies: Array.from(
+                            Array(hint.subHints.length).keys()
+                        ),
+                    });
+                }
+                return null;
+            });
+        }
+
+        return hints;
     };
 
     // TODO: Incorporate this in the AI Hinting workflow
@@ -285,11 +343,20 @@ class ProblemCard extends React.Component {
             toastNotifyCompletion(this.translate);
         }
 
+        const responseTimeMs = Math.max(
+            0,
+            Date.now() - (this.state.attemptStartedAt || Date.now())
+        );
+
         this.setState({
             isCorrect,
             checkMarkOpacity: isCorrect ? "100" : "0",
+            attemptStartedAt: Date.now(),
         });
-        answerMade(this.index, knowledgeComponents, isCorrect);
+        answerMade(this.index, knowledgeComponents, isCorrect, {
+            source: "submit",
+            responseTimeMs,
+        });
     };
 
     editInput = (event) => {
@@ -329,7 +396,8 @@ class ProblemCard extends React.Component {
                 this.props.answerMade(
                     this.index,
                     this.step.knowledgeComponents,
-                    false
+                    false,
+                    { source: "hint" }
                 );
             }
         );
@@ -344,7 +412,9 @@ class ProblemCard extends React.Component {
 
         if (hintsFinished.reduce((a, b) => a + b) === 0 && isCorrect !== true) {
             this.setState({ usedHints: true });
-            answerMade(this.index, knowledgeComponents, false);
+            answerMade(this.index, knowledgeComponents, false, {
+                source: "hint",
+            });
         }
 
         // If the user has not opened a scaffold before, mark it as in-progress.
@@ -504,64 +574,7 @@ class ProblemCard extends React.Component {
                 isGeneratingHint: false,
             })
             console.error("Error generating AI hint:", error);
-        
-            this.hints = JSON.parse(
-                JSON.stringify(this.step.hints[this.context.hintPathway])
-            );
-            for (let hint of this.hints) {
-                hint.dependencies = hint.dependencies.map((dependency) =>
-                    this._findHintId(this.hints, dependency)
-                );
-                if (hint.subHints) {
-                    for (let subHint of hint.subHints) {
-                        subHint.dependencies = subHint.dependencies.map(
-                            (dependency) =>
-                                this._findHintId(hint.subHints, dependency)
-                        );
-                    }
-                }
-            }
-
-            // Bottom out hints option
-
-            console.log("Constructor - About to check bottom hints:", this.giveStuBottomHint, this.context.debug, this.context["use_expanded_view"]);
-
-            if (
-                this.giveStuBottomHint &&
-                !(this.context.debug && this.context["use_expanded_view"])
-            ) {
-                // Bottom out hints
-                this.hints.push({
-                    id: this.step.id + "-h" + (this.hints.length + 1),
-                    title: this.translate('hintsystem.answer'),
-                    text: this.translate('hintsystem.answerIs') + this.step.stepAnswer,
-                    type: "bottomOut",
-                    dependencies: Array.from(Array(this.hints.length).keys()),
-                });
-                // Bottom out sub hints
-                this.hints.map((hint, i) => {
-                    if (hint.type === "scaffold") {
-                        if (hint.subHints == null) {
-                            hint.subHints = [];
-                        }
-                        hint.subHints.push({
-                            id:
-                                this.step.id +
-                                "-h" +
-                                i +
-                                "-s" +
-                                (hint.subHints.length + 1),
-                            title: this.translate('hintsystem.answer'),
-                            text: this.translate('hintsystem.answerIs') + hint.hintAnswer[0],
-                            type: "bottomOut",
-                            dependencies: Array.from(
-                                Array(hint.subHints.length).keys()
-                            ),
-                        });
-                    }
-                    return null;
-                });
-            }
+            this.hints = this.initializeManualHints();
         
             this.setState({
                 hints: this.hints,
