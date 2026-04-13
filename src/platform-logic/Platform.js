@@ -47,7 +47,7 @@ const DEFAULT_BEHAVIOR_INTERVENTION_MESSAGE =
 const MERGE_INTERACTIONS_URL = "https://kaushik-dev.online/api/recommend/";
 const MERGE_STUDENT_ID_SESSION_KEY = "merge_student_id";
 const MERGE_SESSION_ID_SESSION_KEY = "merge_session_id";
-const MERGE_CHAPTER_ID = "grade8_quadrilaterals";
+const MERGE_CHAPTER_ID = "grade8_understanding_quadrilaterals";
 
 let seed = Date.now().toString();
 console.log("Generated seed");
