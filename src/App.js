@@ -66,6 +66,43 @@ const queryParamToContext = {
 };
 
 const queryParamsToKeep = ["use_expanded_view", "to", "do_not_restore", "locale"];
+const MERGE_STUDENT_ID_SESSION_KEY = "merge_student_id";
+const MERGE_SESSION_ID_SESSION_KEY = "merge_session_id";
+
+const getLocationSearchParams = () => {
+    const hash = window.location.hash || "";
+    const hashQueryIndex = hash.indexOf("?");
+    const hashQuery = hashQueryIndex >= 0 ? hash.slice(hashQueryIndex + 1) : "";
+    const search = window.location.search || hashQuery;
+    return new URLSearchParams(search);
+};
+
+const persistMergePortalSessionFromUrl = () => {
+    const searchParams = getLocationSearchParams();
+    const studentId = String(searchParams.get("student_id") || "").trim();
+    const sessionId = String(searchParams.get("session_id") || "").trim();
+    const token = searchParams.get("token");
+
+    if (studentId) {
+        sessionStorage.setItem(MERGE_STUDENT_ID_SESSION_KEY, studentId);
+        sessionStorage.setItem("student_id", studentId);
+    }
+    if (sessionId) {
+        sessionStorage.setItem(MERGE_SESSION_ID_SESSION_KEY, sessionId);
+        sessionStorage.setItem("session_id", sessionId);
+    }
+    if (token !== null) {
+        sessionStorage.setItem("token", token);
+    }
+};
+
+const getSessionStorageValue = (key) => {
+    try {
+        return String(sessionStorage.getItem(key) || "").trim();
+    } catch (_error) {
+        return "";
+    }
+};
 
 let treatmentMapping;
 const QUADRILATERAL_LESSON_ID = "class8-quad-lesson-1";
@@ -87,6 +124,8 @@ if (!AB_TEST_MODE) {
 class App extends React.Component {
     constructor(props) {
         super(props);
+        persistMergePortalSessionFromUrl();
+
         // UserID creation/loading
         let userId = localStorage.getItem(USER_ID_STORAGE_KEY);
         if (!userId) {
@@ -111,6 +150,8 @@ class App extends React.Component {
         }
 
         const onLocationChange = () => {
+            persistMergePortalSessionFromUrl();
+
             const additionalContext = {};
             const search =
                 window.location.search ||
@@ -128,9 +169,21 @@ class App extends React.Component {
             });
 
             if (additionalContext?.jwt) {
-                const user = parseJwt(additionalContext.jwt);
-                additionalContext["user"] = user;
-                additionalContext["studentName"] = user.full_name;
+                let parsedToken = null;
+                try {
+                    parsedToken = parseJwt(additionalContext.jwt);
+                } catch (error) {
+                    console.warn(
+                        "Could not parse JWT token:",
+                        error?.message || error
+                    );
+                }
+
+                if (parsedToken) {
+                    additionalContext["user"] = parsedToken;
+                    additionalContext["studentName"] =
+                        parsedToken.full_name;
+                }
             }
 
             // Firebase creation
@@ -408,8 +461,13 @@ class App extends React.Component {
     };
 
     render() {
+        const hasMergePortalStudent = Boolean(
+            getSessionStorageValue(MERGE_STUDENT_ID_SESSION_KEY)
+        );
         const mustLoginAsLearner =
-            !this.state.learnerID && !this.state.additionalContext?.jwt;
+            !hasMergePortalStudent &&
+            !this.state.learnerID &&
+            !this.state.additionalContext?.jwt;
 
         return (
             <ThemeProvider theme={theme}>

@@ -9,7 +9,6 @@ import {
     findLessonById,
     LESSON_PROGRESS_STORAGE_KEY,
     MIDDLEWARE_URL,
-    SITE_NAME,
     ThemeContext,
     MASTERY_THRESHOLD,
     SHOW_NOT_CANVAS_WARNING,
@@ -45,6 +44,10 @@ const DEFAULT_ACCURACY_INTERVENTION_MESSAGE =
     "Because you are facing repeated mistakes in this subtopic, revisit this theory section before the next question.";
 const DEFAULT_BEHAVIOR_INTERVENTION_MESSAGE =
     "Because you are spending more time on this subtopic, revisit this theory section before the next question.";
+const MERGE_INTERACTIONS_URL = "https://kaushik-dev.online/api/recommend/";
+const MERGE_STUDENT_ID_SESSION_KEY = "merge_student_id";
+const MERGE_SESSION_ID_SESSION_KEY = "merge_session_id";
+const MERGE_CHAPTER_ID = "grade8_quadrilaterals";
 
 let seed = Date.now().toString();
 console.log("Generated seed");
@@ -65,6 +68,9 @@ class Platform extends React.Component {
         console.debug("USER: ", this.user)
         this.isPrivileged = !!this.user.privileged;
         this.context = context;
+        this.mergePayloadSent = false;
+        this.isPageUnloading = false;
+        this.resetUnloadIntentHandle = null;
 
         // Add each Q Matrix skill model attribute to each step
         for (const problem of this.problemIndex.problems) {
@@ -215,8 +221,47 @@ class Platform extends React.Component {
         await setByKey(this.getBehaviorMetricsStorageKey(), payload).catch(() => {});
     };
 
+    getMergePortalSessionIdentifiers = () => {
+        try {
+            return {
+                studentId: String(
+                    sessionStorage.getItem(MERGE_STUDENT_ID_SESSION_KEY) ||
+                        sessionStorage.getItem("student_id") ||
+                        ""
+                ).trim(),
+                sessionId: String(
+                    sessionStorage.getItem(MERGE_SESSION_ID_SESSION_KEY) ||
+                        sessionStorage.getItem("session_id") ||
+                        ""
+                ).trim(),
+            };
+        } catch (_error) {
+            return {
+                studentId: "",
+                sessionId: "",
+            };
+        }
+    };
+
+    getMergePortalToken = () => {
+        try {
+            return String(sessionStorage.getItem("token") || "").trim();
+        } catch (_error) {
+            return "";
+        }
+    };
+
+    isSessionComplete = () => {
+        return (
+            this.state.status === "graduated" ||
+            this.state.status === "exhausted"
+        );
+    };
+
     componentDidMount() {
         this._isMounted = true;
+        window.addEventListener("beforeunload", this.handleBeforeUnload);
+        window.addEventListener("unload", this.handleUnload);
 
         const { enterCourse, exitCourse} = this.props;
 
@@ -274,6 +319,18 @@ class Platform extends React.Component {
 
     componentWillUnmount() {
         this._isMounted = false;
+        window.removeEventListener("beforeunload", this.handleBeforeUnload);
+        window.removeEventListener("unload", this.handleUnload);
+        if (this.resetUnloadIntentHandle != null) {
+            window.clearTimeout(this.resetUnloadIntentHandle);
+            this.resetUnloadIntentHandle = null;
+        }
+
+        const isHardUnload =
+            this.isPageUnloading || document.visibilityState === "hidden";
+        if (!isHardUnload && !this.isSessionComplete()) {
+            this.sendSessionToMerge("exited_midway");
+        }
         this.context.problemID = "n/a";
     }
 
@@ -379,12 +436,14 @@ class Platform extends React.Component {
         };
     };
 
-    getProgressBarData() {
-        if (!this.lesson) return { completed: 0, total: 0, percent: 0 };
+    getLessonProblems = (lesson = this.lesson) => {
+        if (!lesson) {
+            return [];
+        }
 
-        const lessonToken = this.getLessonSearchToken(this.lesson);
-        const lessonCourseName = String(this.lesson.courseName || "").trim();
-        const problems = this.problemIndex.problems.filter(({ lesson, courseName }) => {
+        const lessonToken = this.getLessonSearchToken(lesson);
+        const lessonCourseName = String(lesson.courseName || "").trim();
+        return this.problemIndex.problems.filter(({ lesson, courseName }) => {
             const lessonMatches = lessonToken
                 ? String(lesson || "").includes(lessonToken)
                 : false;
@@ -393,6 +452,12 @@ class Platform extends React.Component {
                 : true;
             return lessonMatches && courseMatches;
         });
+    };
+
+    getProgressBarData() {
+        if (!this.lesson) return { completed: 0, total: 0, percent: 0 };
+
+        const problems = this.getLessonProblems(this.lesson);
         const completed = this.completedProbs.size;
         const total = problems.length;
         const percent = total > 0 ? Math.round((completed / total) * 100) : 0;
@@ -404,17 +469,7 @@ class Platform extends React.Component {
             return [];
         }
 
-        const lessonToken = this.getLessonSearchToken(this.lesson);
-        const lessonCourseName = String(this.lesson.courseName || "").trim();
-        const problems = this.problemIndex.problems.filter(({ lesson, courseName }) => {
-            const lessonMatches = lessonToken
-                ? String(lesson || "").includes(lessonToken)
-                : false;
-            const courseMatches = lessonCourseName
-                ? String(courseName || "").trim() === lessonCourseName
-                : true;
-            return lessonMatches && courseMatches;
-        });
+        const problems = this.getLessonProblems(this.lesson);
 
         const types = new Set();
         for (const problem of problems) {
@@ -431,6 +486,203 @@ class Platform extends React.Component {
 
         return Array.from(types);
     }
+
+    getTotalHintsEmbedded = () => {
+        const problems = this.getLessonProblems(this.lesson);
+        return problems.reduce((problemTotal, problem) => {
+            const stepHintCount = (problem.steps || []).reduce(
+                (stepTotal, step) => {
+                    const pathways = step?.hints || {};
+                    const selectedPathway =
+                        (Array.isArray(pathways.DefaultPathway) &&
+                            pathways.DefaultPathway) ||
+                        Object.values(pathways).find((pathway) =>
+                            Array.isArray(pathway)
+                        ) ||
+                        [];
+
+                    const hintNodeCount = selectedPathway.reduce(
+                        (hintTotal, hintNode) => {
+                            return (
+                                hintTotal +
+                                1 +
+                                (Array.isArray(hintNode?.subHints)
+                                    ? hintNode.subHints.length
+                                    : 0)
+                            );
+                        },
+                        0
+                    );
+
+                    return stepTotal + hintNodeCount;
+                },
+                0
+            );
+            return problemTotal + stepHintCount;
+        }, 0);
+    };
+
+    buildMergeSessionPayload = (sessionStatus) => {
+        const { studentId, sessionId } = this.getMergePortalSessionIdentifiers();
+        if (!studentId || !sessionId) {
+            return null;
+        }
+
+        const skillDifficultyMap = this.state.skillDifficultyMap || {};
+        let totalAttempts = 0;
+        let totalIncorrect = 0;
+        let totalHintsUsed = 0;
+        let totalResponseMs = 0;
+
+        Object.entries(skillDifficultyMap).forEach(([, metrics]) => {
+            const attempts = Number(metrics?.totalAttempts || 0);
+            const incorrect = Number(metrics?.totalIncorrect || 0);
+            const hintsUsed = Number(metrics?.hintInteractions || 0);
+            const responseMs = Number(metrics?.totalResponseMs || 0);
+
+            totalAttempts += attempts;
+            totalIncorrect += incorrect;
+            totalHintsUsed += hintsUsed;
+            totalResponseMs += responseMs;
+        });
+
+        const lessonProblems = this.getLessonProblems(this.lesson);
+        const totalQuestions = lessonProblems.reduce(
+            (sum, problem) => sum + (problem.steps || []).length,
+            0
+        );
+        const progressData = this.getProgressBarData();
+        const topicCompletionRatio =
+            progressData.total > 0
+                ? Number((progressData.completed / progressData.total).toFixed(4))
+                : 0;
+        const questionsAttempted = Math.max(0, totalAttempts);
+        const wrongAnswers = Math.max(0, totalIncorrect);
+        const correctAnswers = Math.max(0, totalAttempts - totalIncorrect);
+        const retryCount = Math.max(0, totalIncorrect);
+
+        return {
+            student_id: studentId,
+            session_id: sessionId,
+            chapter_id: MERGE_CHAPTER_ID,
+            timestamp: new Date().toISOString(),
+            session_status:
+                sessionStatus === "completed" ? "completed" : "exited_midway",
+            correct_answers: correctAnswers,
+            wrong_answers: wrongAnswers,
+            questions_attempted: questionsAttempted,
+            total_questions: Math.max(0, totalQuestions),
+            hints_used: Math.max(0, totalHintsUsed),
+            total_hints_embedded: Math.max(0, this.getTotalHintsEmbedded()),
+            retry_count: retryCount,
+            time_spent_seconds: Math.max(0, Math.round(totalResponseMs / 1000)),
+            topic_completion_ratio: topicCompletionRatio,
+        };
+    };
+
+    sendSessionToMerge = async (sessionStatus = "completed", options = {}) => {
+        if (this.mergePayloadSent) {
+            return;
+        }
+
+        const payload = this.buildMergeSessionPayload(sessionStatus);
+        if (!payload) {
+            return;
+        }
+
+        this.mergePayloadSent = true;
+
+        const requestBody = JSON.stringify(payload);
+        const preferBeacon = Boolean(options?.preferBeacon);
+
+        try {
+            if (
+                preferBeacon &&
+                typeof navigator !== "undefined" &&
+                typeof navigator.sendBeacon === "function"
+            ) {
+                const blob = new Blob([requestBody], {
+                    type: "application/json",
+                });
+                const queued = navigator.sendBeacon(MERGE_INTERACTIONS_URL, blob);
+                if (queued) {
+                    return;
+                }
+            }
+
+            const response = await fetch(MERGE_INTERACTIONS_URL, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${this.getMergePortalToken()}`,
+                },
+                body: requestBody,
+                keepalive: true,
+            });
+
+            if (!response.ok) {
+                console.error(
+                    "Failed to send session data to Merge",
+                    response.status,
+                    response.statusText
+                );
+            }
+        } catch (error) {
+            console.error("Failed to send session data to Merge", error);
+        }
+    };
+
+    handleBeforeUnload = (event) => {
+        if (this.isSessionComplete() || this.mergePayloadSent) {
+            return;
+        }
+
+        this.isPageUnloading = true;
+        if (this.resetUnloadIntentHandle != null) {
+            window.clearTimeout(this.resetUnloadIntentHandle);
+        }
+        this.resetUnloadIntentHandle = window.setTimeout(() => {
+            this.isPageUnloading = false;
+            this.resetUnloadIntentHandle = null;
+        }, 0);
+
+        event.preventDefault();
+        event.returnValue =
+            "Your progress will be saved. Are you sure you want to leave?";
+        return event.returnValue;
+    };
+
+    handleUnload = () => {
+        this.isPageUnloading = true;
+        if (this.isSessionComplete() || this.mergePayloadSent) {
+            return;
+        }
+
+        const payload = this.buildMergeSessionPayload("exited_midway");
+        if (!payload) {
+            return;
+        }
+
+        try {
+            if (
+                typeof navigator === "undefined" ||
+                typeof navigator.sendBeacon !== "function"
+            ) {
+                return;
+            }
+
+            const didQueue = navigator.sendBeacon(
+                MERGE_INTERACTIONS_URL,
+                JSON.stringify(payload)
+            );
+
+            if (didQueue) {
+                this.mergePayloadSent = true;
+            }
+        } catch (error) {
+            console.error("Failed to send unload beacon to Merge", error);
+        }
+    };
     
     async selectLesson(lesson, updateServer=true) {
         const context = this.context;
@@ -631,19 +883,16 @@ class Platform extends React.Component {
 
     recordSkillOutcome = (skillIds, isCorrect, stepId = "", attemptMeta = {}) => {
         const attemptSource = String(attemptMeta?.source || "submit").toLowerCase();
-        if (attemptSource !== "submit") {
+        const isSubmitAttempt = attemptSource === "submit";
+        const isHintInteraction = attemptSource === "hint";
+        if (!isSubmitAttempt && !isHintInteraction) {
             return;
         }
 
         const normalizedSkillIds = cleanArray(skillIds || []);
-        if (!Array.isArray(normalizedSkillIds) || normalizedSkillIds.length === 0) {
-            return;
-        }
-
-        const responseTimeMs = Math.max(
-            0,
-            Number(attemptMeta?.responseTimeMs || 0)
-        );
+        const responseTimeMs = isSubmitAttempt
+            ? Math.max(0, Number(attemptMeta?.responseTimeMs || 0))
+            : 0;
         const isLongResponse = responseTimeMs >= BEHAVIOR_LONG_RESPONSE_MS;
 
         const normalizedStepId = String(stepId || "").trim();
@@ -652,6 +901,9 @@ class Platform extends React.Component {
 
         let resolvedSkill = mappedSkill;
         if (!resolvedSkill) {
+            if (!Array.isArray(normalizedSkillIds) || normalizedSkillIds.length === 0) {
+                return;
+            }
             resolvedSkill = normalizedSkillIds.reduce((weakestSkill, candidateSkill) => {
                 if (!candidateSkill) {
                     return weakestSkill;
@@ -696,23 +948,44 @@ class Platform extends React.Component {
                 totalResponseMs: 0,
                 longResponseCount: 0,
                 longResponseStreak: 0,
+                hintInteractions: 0,
             };
 
             const next = {
-                totalAttempts: prev.totalAttempts + 1,
-                totalIncorrect: prev.totalIncorrect + (isCorrect ? 0 : 1),
-                recentIncorrect: isCorrect ? 0 : prev.recentIncorrect + 1,
-                responseSamples: prev.responseSamples + (responseTimeMs > 0 ? 1 : 0),
-                totalResponseMs: prev.totalResponseMs + responseTimeMs,
-                longResponseCount: prev.longResponseCount + (isLongResponse ? 1 : 0),
+                totalAttempts: Number(prev.totalAttempts || 0) + (isSubmitAttempt ? 1 : 0),
+                totalIncorrect:
+                    Number(prev.totalIncorrect || 0) +
+                    (isSubmitAttempt && !isCorrect ? 1 : 0),
+                recentIncorrect:
+                    isSubmitAttempt && isCorrect
+                        ? 0
+                        : Number(prev.recentIncorrect || 0) +
+                          (isSubmitAttempt && !isCorrect ? 1 : 0),
+                responseSamples:
+                    Number(prev.responseSamples || 0) +
+                    (isSubmitAttempt && responseTimeMs > 0 ? 1 : 0),
+                totalResponseMs:
+                    Number(prev.totalResponseMs || 0) +
+                    (isSubmitAttempt ? responseTimeMs : 0),
+                longResponseCount:
+                    Number(prev.longResponseCount || 0) +
+                    (isSubmitAttempt && isLongResponse ? 1 : 0),
                 longResponseStreak:
-                    responseTimeMs <= 0
-                        ? prev.longResponseStreak
+                    !isSubmitAttempt || responseTimeMs <= 0
+                        ? Number(prev.longResponseStreak || 0)
                         : isLongResponse
-                        ? prev.longResponseStreak + 1
+                        ? Number(prev.longResponseStreak || 0) + 1
                         : 0,
+                hintInteractions:
+                    Number(prev.hintInteractions || 0) + (isHintInteraction ? 1 : 0),
             };
             nextSkillDifficultyMap[resolvedSkill] = next;
+
+            if (!isSubmitAttempt) {
+                return {
+                    skillDifficultyMap: nextSkillDifficultyMap,
+                };
+            }
 
             const shouldInterveneByAccuracy =
                 !isCorrect &&
@@ -951,7 +1224,12 @@ class Platform extends React.Component {
                     MASTERY_THRESHOLD
             )
         ) {
-            this.setState({ status: "graduated", adaptiveTrace: null });
+            this.setState(
+                { status: "graduated", adaptiveTrace: null },
+                () => {
+                    this.sendSessionToMerge("completed");
+                }
+            );
             console.log("Graduated");
             return null;
         } else if (chosenProblem == null) {
@@ -959,7 +1237,12 @@ class Platform extends React.Component {
             // We have finished all the problems
             if (this.lesson && !this.lesson.allowRecycle) {
                 // If we do not allow problem recycle then we have exhausted the pool
-                this.setState({ status: "exhausted", adaptiveTrace: null });
+                this.setState(
+                    { status: "exhausted", adaptiveTrace: null },
+                    () => {
+                        this.sendSessionToMerge("completed");
+                    }
+                );
                 return null;
             } else {
                 this.completedProbs = new Set();
@@ -1180,82 +1463,23 @@ class Platform extends React.Component {
                 })
             );
             if (err || !response) {
-                toast.error(
-                    `An unknown error occurred trying to submit this problem. If reloading does not work, please contact us.`,
-                    {
-                        toastId: ToastID.submit_grade_unknown_error.toString(),
-                    }
-                );
-                console.debug(err, response);
-            } else {
-                if (response.status !== 200) {
-                    switch (response.status) {
-                        case 400:
-                            const responseText = await response.text();
-                            let [message, ...addInfo] = responseText.split("|");
-                            if (
-                                Array.isArray(addInfo) &&
-                                addInfo.length > 0 &&
-                                addInfo[0]
-                            ) {
-                                addInfo = JSON.parse(addInfo[0]);
-                            }
-                            switch (message) {
-                                case "lost_link_to_lms":
-                                    toast.error(
-                                        "It seems like the link back to your LMS has been lost. Please re-open the assignment to make sure your score is saved.",
-                                        {
-                                            toastId:
-                                                ToastID.submit_grade_link_lost.toString(),
-                                        }
-                                    );
-                                    return;
-                                case "unable_to_handle_score":
-                                    toast.warn(
-                                        "Something went wrong and we can't update your score right now. Your progress will be saved locally so you may continue working.",
-                                        {
-                                            toastId:
-                                                ToastID.submit_grade_unable.toString(),
-                                            closeOnClick: true,
-                                        }
-                                    );
-                                    return;
-                                default:
-                                    toast.error(`Error: ${responseText}`, {
-                                        closeOnClick: true,
-                                    });
-                                    return;
-                            }
-                        case 401:
-                            toast.error(
-                                `Your session has either expired or been invalidated, please reload the page to try again.`,
-                                {
-                                    toastId: ToastID.expired_session.toString(),
-                                }
-                            );
-                            return;
-                        case 403:
-                            toast.error(
-                                `You are not authorized to make this action. (Are you a registered student?)`,
-                                {
-                                    toastId: ToastID.not_authorized.toString(),
-                                }
-                            );
-                            return;
-                        default:
-                            toast.error(
-                                `An unknown error occurred trying to submit this problem. If reloading does not work, please contact us.`,
-                                {
-                                    toastId:
-                                        ToastID.set_lesson_unknown_error.toString(),
-                                }
-                            );
-                            return;
-                    }
-                } else {
-                    console.debug("successfully submitted grade to Canvas");
-                }
+                console.debug("postScore analytics request failed", err, response);
+                return;
             }
+
+            if (response.status !== 200) {
+                const responseText = await response
+                    .text()
+                    .catch(() => "unable to read response body");
+                console.debug(
+                    "postScore analytics request returned non-200",
+                    response.status,
+                    responseText
+                );
+                return;
+            }
+
+            console.debug("successfully submitted grade to Canvas");
         } else {
             const { getByKey, setByKey } = this.context.browserStorage;
             const showWarning =
@@ -1373,8 +1597,7 @@ class Platform extends React.Component {
                 {this.state.status === "exhausted" ? (
                     <center>
                         <h2>
-                            Thank you for learning with {SITE_NAME}. You have
-                            finished all problems.
+                            You have finished all questions. Great work!
                         </h2>
                         <Button
                             variant="contained"
@@ -1390,8 +1613,7 @@ class Platform extends React.Component {
                 {this.state.status === "graduated" ? (
                     <center>
                         <h2>
-                            Thank you for learning with {SITE_NAME}. You have
-                            mastered all the skills for this session!
+                            You have finished all questions. Great work!
                         </h2>
                     </center>
                 ) : (

@@ -157,82 +157,23 @@ class Problem extends React.Component {
                 })
             );
             if (err || !response) {
-                toast.error(
-                    `An unknown error occurred trying to submit this problem. If reloading does not work, please contact us.`,
-                    {
-                        toastId: ToastID.submit_grade_unknown_error.toString(),
-                    }
-                );
-                console.debug(err, response);
-            } else {
-                if (response.status !== 200) {
-                    switch (response.status) {
-                        case 400:
-                            const responseText = await response.text();
-                            let [message, ...addInfo] = responseText.split("|");
-                            if (
-                                Array.isArray(addInfo) &&
-                                addInfo.length > 0 &&
-                                addInfo[0]
-                            ) {
-                                addInfo = JSON.parse(addInfo[0]);
-                            }
-                            switch (message) {
-                                case "lost_link_to_lms":
-                                    toast.error(
-                                        "It seems like the link back to your LMS has been lost. Please re-open the assignment to make sure your score is saved.",
-                                        {
-                                            toastId:
-                                                ToastID.submit_grade_link_lost.toString(),
-                                        }
-                                    );
-                                    return;
-                                case "unable_to_handle_score":
-                                    toast.warn(
-                                        "Something went wrong and we can't update your score right now. Your progress will be saved locally so you may continue working.",
-                                        {
-                                            toastId:
-                                                ToastID.submit_grade_unable.toString(),
-                                            closeOnClick: true,
-                                        }
-                                    );
-                                    return;
-                                default:
-                                    toast.error(`Error: ${responseText}`, {
-                                        closeOnClick: true,
-                                    });
-                                    return;
-                            }
-                        case 401:
-                            toast.error(
-                                `Your session has either expired or been invalidated, please reload the page to try again.`,
-                                {
-                                    toastId: ToastID.expired_session.toString(),
-                                }
-                            );
-                            return;
-                        case 403:
-                            toast.error(
-                                `You are not authorized to make this action. (Are you a registered student?)`,
-                                {
-                                    toastId: ToastID.not_authorized.toString(),
-                                }
-                            );
-                            return;
-                        default:
-                            toast.error(
-                                `An unknown error occurred trying to submit this problem. If reloading does not work, please contact us.`,
-                                {
-                                    toastId:
-                                        ToastID.set_lesson_unknown_error.toString(),
-                                }
-                            );
-                            return;
-                    }
-                } else {
-                    console.debug("successfully submitted grade to Canvas");
-                }
+                console.debug("postScore analytics request failed", err, response);
+                return;
             }
+
+            if (response.status !== 200) {
+                const responseText = await response
+                    .text()
+                    .catch(() => "unable to read response body");
+                console.debug(
+                    "postScore analytics request returned non-200",
+                    response.status,
+                    responseText
+                );
+                return;
+            }
+
+            console.debug("successfully submitted grade to Canvas");
         } else {
             const { getByKey, setByKey } = this.context.browserStorage;
             const showWarning =
